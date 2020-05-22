@@ -1,0 +1,47 @@
+[{
+    "id": 1,
+    "date": "2018-06-10T18:45:00Z",
+    "chat_id": 1,
+    "user_id": 1,
+    "text":
+        "Greetings, fellow colleagues. I would like to share my insights on this task. I reckon we should deal with at least half of the points in the plan without further delays. I suggest proceeding from one point to the next and notifying the rest of us with at least short notices. This way is best to keep track of who is doing what."
+},
+{
+    "id": 2,
+    "date": "2018-06-12T19:40:00Z",
+    "chat_id": 1,
+    "user_id": 2,
+    "text":
+        "Hi, is that you Corvo? I am sure that that's exactly what is thought best out there in Dunwall. Let's just do what we are supposed to do to get the result."
+},
+{
+    "id": 3,
+    "date": "2018-06-12T20:16:00Z",
+    "chat_id": 1,
+    "user_id": 3,
+    "text":
+        "Whoa. Corvo is right, though I must admit, he is often way too serious and lacks a good healthy sense of humour.<br>I'd also like to add that half of the points in the plan (btw who wrote it? I would like a long thoughtful conversation in person with the guy / lady in question. Maybe over a chessboard as well) Well, most of the points can be omitted if we rationally split the subtasks between all the parties and optimize the whole line of work."
+},
+{
+    "id": 4,
+    "date": "2018-06-14T21:57:00Z",
+    "chat_id": 1,
+    "user_id": 1,
+    "text":
+        "Whatever you say, guys. (And Crake, I don't like chess. Though a blithesome conversation in the cafeteria is highly appreciated)."
+},
+{
+    "id": 5,
+    "date": "2018-06-14T22:01:00Z",
+    "chat_id": 1,
+    "user_id": 2,
+    "text":
+        "There are things that you cannot solve by jumping in an X-wing and blowing something up, Daizy))) Was it you, Daisy?<br>Okay, guys, let's meet in person, discuss the finale details of the plan and let's begin at last."
+},
+{
+    "id": 6,
+    "date": "2020-05-25T10:15:00Z",
+    "chat_id": 2,
+    "user_id": 2,
+    "text": "Hi, Alex!"
+}]

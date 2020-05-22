@@ -1,0 +1,9 @@
+server:
+  port: ":8040"
+  public: "http://localhost:8040"
+db:
+  user: root
+  password: 1
+  host: 127.0.0.1
+  database: users
+  path: "./db.sqlite"

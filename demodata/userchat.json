@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "chat_id": 1,
+    "user_id": 1,
+	"unread_count": 2,
+	"direct_id": 0,
+	"status": 1
+  },
+  {
+    "id": 2,
+    "chat_id": 1,
+    "user_id": 2,
+	"unread_count": 0,
+	"direct_id": 0,
+	"status": 1
+  },
+  {
+    "id": 3,
+    "chat_id": 1,
+    "user_id": 3,
+	"unread_count": 1,
+	"direct_id": 0,
+	"status": 1
+  },
+  {
+    "id": 4,
+    "chat_id": 2,
+    "user_id": 1,
+	"unread_count": 1,
+	"direct_id": 2,
+	"status": 1
+  },
+  {
+    "id": 5,
+    "chat_id": 2,
+    "user_id": 2,
+	"unread_count": 0,
+	"direct_id": 1,
+	"status": 1
+  }
+]
