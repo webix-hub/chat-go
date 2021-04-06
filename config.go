@@ -12,6 +12,7 @@ var Config AppConfig
 // AppConfig contains app's configuration
 type AppConfig struct {
 	Server struct {
+		Stun   string
 		Port   string `default:":80"`
 		Data   string `default:"./storage"`
 		Public string

@@ -98,6 +98,7 @@ func main() {
 
 	r.Get("/api/v1", rapi.ServeHTTP)
 	r.Post("/api/v1", rapi.ServeHTTP)
+	r.Get("/api/status", rapi.ServeStatus)
 
 	// DEMO ONLY, imitate login
 	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +133,7 @@ func main() {
 	})
 
 	fmt.Println("Listen at port ", Config.Server.Port)
+	go startStunServer("udp", Config.Server.Stun)
 	err = http.ListenAndServe(Config.Server.Port, r)
 	log.Println(err.Error())
 }

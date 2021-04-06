@@ -21,6 +21,7 @@ type DAO struct {
 	Messages  MessagesDAO
 	UserChats UserChatsDAO
 	Chats     ChatsDAO
+	Calls     CallsDAO
 
 	UsersCache UsersCache
 }
@@ -41,12 +42,14 @@ func NewDAO(db *gorm.DB) *DAO {
 	d.Chats = NewChatsDAO(&d, db)
 	d.Messages = NewMessagesDAO(&d, db)
 	d.UserChats = NewUserChatsDAO(&d, db)
+	d.Calls = NewCallsDAO(&d, db)
 
 	d.UsersCache = NewUsersCache(&d)
 
 	d.db.AutoMigrate(&User{})
 	d.db.AutoMigrate(&Message{})
 	d.db.AutoMigrate(&Chat{}, &UserChat{})
+	d.db.AutoMigrate(&Call{})
 
 	return &d
 }
