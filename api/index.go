@@ -143,6 +143,7 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 			ID:     call.ID,
 			Status: call.Status,
 			Users:  []int{call.FromUserID, call.ToUserID},
+			Start: call.Start,
 		}
 	}))
 }

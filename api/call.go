@@ -4,16 +4,18 @@ import (
 	"fmt"
 	remote "github.com/mkozhukh/go-remote"
 	"mkozhukh/chat/data"
+	"time"
 )
 
 type Call struct {
-	ID     int   `json:"id"`
-	Status int   `json:"status"`
-	Users  []int `json:"users"`
+	ID     int        `json:"id"`
+	Status int        `json:"status"`
+	Users  []int      `json:"users"`
+	Start  *time.Time `json:"start"`
 }
 
 type CallsAPI struct {
-	db *data.DAO
+	db      *data.DAO
 	service *CallService
 }
 
@@ -36,6 +38,7 @@ func (d *CallsAPI) Start(targetUserId int, userId UserID) (*Call, error) {
 		ID:     call.ID,
 		Status: call.Status,
 		Users:  []int{call.FromUserID, call.ToUserID},
+		Start: nil,
 	}, nil
 }
 

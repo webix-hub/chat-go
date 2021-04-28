@@ -15,13 +15,13 @@ type CallService struct {
 }
 
 func newCallService(dao data.CallsDAO, hub *remote.Hub) *CallService {
-	d := CallService{dao:dao, hub:hub, offlineUsers: make(map[int]time.Time)}
+	d := CallService{dao: dao, hub: hub, offlineUsers: make(map[int]time.Time)}
 	go d.runCheckOfflineUsers()
 
 	return &d
 }
 
-func (d *CallService) StartCall(id int){
+func (d *CallService) StartCall(id int) {
 	time.AfterFunc(10*time.Second, func() { d.dropNotAccepted(id) })
 }
 
@@ -38,7 +38,7 @@ func (d *CallService) dropNotAccepted(id int) {
 }
 
 func (d *CallService) ChangeOnlineStatus(user int, status int, events *remote.Hub) {
-	if status == data.StatusOnline  {
+	if status == data.StatusOnline {
 		delete(d.offlineUsers, user)
 		return
 	}
@@ -48,18 +48,18 @@ func (d *CallService) ChangeOnlineStatus(user int, status int, events *remote.Hu
 	}
 }
 
-func (d *CallService) runCheckOfflineUsers(){
+func (d *CallService) runCheckOfflineUsers() {
 	for range time.Tick(time.Second * 10) {
 		d.checkOfflineUsers()
 	}
 }
 
-func (d *CallService) checkOfflineUsers(){
+func (d *CallService) checkOfflineUsers() {
 	if len(d.offlineUsers) == 0 {
 		return
 	}
 
-	check := time.Now().Add(-15*time.Second)
+	check := time.Now().Add(-15 * time.Second)
 	for key, offTime := range d.offlineUsers {
 		if offTime.Before(check) {
 			c, err := d.dao.GetByUser(key)
@@ -78,6 +78,7 @@ func (d *CallService) sendEvent(c *data.Call) {
 	msg, _ := json.Marshal(&Call{
 		ID:     c.ID,
 		Status: c.Status,
+		Start:  c.Start,
 		Users:  []int{c.FromUserID, c.ToUserID},
 	})
 	d.hub.Publish("signal", Signal{

@@ -133,7 +133,6 @@ func main() {
 	})
 
 	fmt.Println("Listen at port ", Config.Server.Port)
-	go startStunServer("udp", Config.Server.Stun)
 	err = http.ListenAndServe(Config.Server.Port, r)
 	log.Println(err.Error())
 }
