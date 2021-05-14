@@ -8,14 +8,15 @@ import (
 )
 
 type CallService struct {
-	dao data.CallsDAO
+	cDAO data.CallsDAO
+	mDAO data.MessagesDAO
 	hub *remote.Hub
 
 	offlineUsers map[int]time.Time
 }
 
-func newCallService(dao data.CallsDAO, hub *remote.Hub) *CallService {
-	d := CallService{dao: dao, hub: hub, offlineUsers: make(map[int]time.Time)}
+func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, hub *remote.Hub) *CallService {
+	d := CallService{cDAO: cdao, mDAO:mdao, hub: hub, offlineUsers: make(map[int]time.Time)}
 	go d.runCheckOfflineUsers()
 
 	return &d
@@ -26,13 +27,13 @@ func (d *CallService) StartCall(id int) {
 }
 
 func (d *CallService) dropNotAccepted(id int) {
-	call, err := d.dao.Get(id)
+	call, err := d.cDAO.Get(id)
 	if err != nil {
 		return
 	}
 
 	if call.Status == data.CallStatusInitiated {
-		call, _ = d.dao.Update(call, data.CallStatusIgnored)
+		_ = d.callStatusUpdate(&call, data.CallStatusIgnored)
 		d.sendEvent(&call)
 	}
 }
@@ -62,12 +63,12 @@ func (d *CallService) checkOfflineUsers() {
 	check := time.Now().Add(-15 * time.Second)
 	for key, offTime := range d.offlineUsers {
 		if offTime.Before(check) {
-			c, err := d.dao.GetByUser(key)
+			c, err := d.cDAO.GetByUser(key)
 			if err != nil {
 				return
 			}
 
-			c, _ = d.dao.Update(c, data.CallStatusLost)
+			_ = d.callStatusUpdate(&c, data.CallStatusLost)
 			d.sendEvent(&c)
 
 			delete(d.offlineUsers, key)
@@ -86,4 +87,35 @@ func (d *CallService) sendEvent(c *data.Call) {
 		Message: string(msg),
 		Users:   []int{c.FromUserID, c.ToUserID},
 	})
+}
+
+func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
+	err := d.cDAO.Update(c, status)
+	if err != nil {
+		return err
+	}
+	if status == data.CallStatusAccepted && c.ChatID != 0{
+		err = d.mDAO.Save(&data.Message{
+			Text:   "",
+			ChatID: c.ChatID,
+			UserID: 0,
+			Type:   data.CallStartMessage,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0{
+		err = d.mDAO.Save(&data.Message{
+			Text:   "",
+			ChatID: c.ChatID,
+			UserID: 0,
+			Type:   data.CallEndMessage,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

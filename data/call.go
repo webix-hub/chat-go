@@ -23,9 +23,10 @@ type CallsDAO struct {
 type Call struct {
 	ID         int        `gorm:"primary_key"`
 	Start      *time.Time `gorm:"column:start"`
-	Status     int
-	FromUserID int `gorm:"column:from"`
-	ToUserID   int `gorm:"column:to"`
+	Status     int        `gorm:"column:status"`
+	FromUserID int        `gorm:"column:from"`
+	ToUserID   int        `gorm:"column:to"`
+	ChatID     int        `gorm:"column:chat_id"`
 }
 
 func NewCallsDAO(dao *DAO, db *gorm.DB) CallsDAO {
@@ -61,7 +62,7 @@ func (d *CallsDAO) GetByUser(id int) (Call, error) {
 	return c, err
 }
 
-func (d *CallsDAO) Update(call Call, status int) (Call, error) {
+func (d *CallsDAO) Update(call *Call, status int) error {
 	if status == CallStatusAccepted {
 		status = CallStatusActive
 	}
@@ -70,5 +71,5 @@ func (d *CallsDAO) Update(call Call, status int) (Call, error) {
 	call.Start = &currentTime
 	call.Status = status
 
-	return call, d.db.Save(&call).Error
+	return d.db.Save(&call).Error
 }

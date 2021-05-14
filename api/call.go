@@ -38,7 +38,7 @@ func (d *CallsAPI) Start(targetUserId int, userId UserID) (*Call, error) {
 		ID:     call.ID,
 		Status: call.Status,
 		Users:  []int{call.FromUserID, call.ToUserID},
-		Start: nil,
+		Start:  nil,
 	}, nil
 }
 
@@ -57,7 +57,7 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID) (int, error) {
 		return 0, fmt.Errorf("%s", "Access denied")
 	}
 
-	call, err = d.db.Calls.Update(call, status)
+	err = d.service.callStatusUpdate(&call, status)
 	if err != nil {
 		return 0, err
 	}

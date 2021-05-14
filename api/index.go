@@ -30,7 +30,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		WebSocket: true,
 	})
 
-	service := newCallService(db.Calls, api.Events)
+	service := newCallService(db.Calls, db.Messages, api.Events)
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(MessageEvent)
@@ -143,7 +143,7 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 			ID:     call.ID,
 			Status: call.Status,
 			Users:  []int{call.FromUserID, call.ToUserID},
-			Start: call.Start,
+			Start:  call.Start,
 		}
 	}))
 }

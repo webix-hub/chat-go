@@ -6,6 +6,12 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+const (
+	TextMessage      = 1
+	CallStartMessage = 2
+	CallEndMessage   = 3
+)
+
 type MessagesDAO struct {
 	dao *DAO
 	db  *gorm.DB
@@ -21,6 +27,7 @@ type Message struct {
 	Date   time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"date"`
 	ChatID int       `json:"chat_id"`
 	UserID int       `json:"user_id"`
+	Type   int       `json:"type"`
 }
 
 func (d *MessagesDAO) GetOne(msgID int) (*Message, error) {
