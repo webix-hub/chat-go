@@ -85,11 +85,11 @@ func main() {
 			}
 
 			if token != "" {
-				id, err := verifyUserToken([]byte(token))
+				id, device, err := verifyUserToken([]byte(token))
 				if err != nil {
 					log.Println("[token]", err.Error())
 				} else {
-					r = r.WithContext(context.WithValue(r.Context(), "user_id", id))
+					r = r.WithContext(context.WithValue(context.WithValue(r.Context(), "user_id", id), "device_id", device))
 				}
 			}
 			next.ServeHTTP(w, r)
@@ -103,7 +103,8 @@ func main() {
 	// DEMO ONLY, imitate login
 	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
 		uid, _ := strconv.Atoi(r.URL.Query().Get("id"))
-		token, err := createUserToken(uid)
+		device := newDeviceID()
+		token, err := createUserToken(uid, device)
 		if err != nil {
 			log.Println("[token]", err.Error())
 		}
@@ -135,4 +136,11 @@ func main() {
 	fmt.Println("Listen at port ", Config.Server.Port)
 	err = http.ListenAndServe(Config.Server.Port, r)
 	log.Println(err.Error())
+}
+
+var dID = 0
+
+func newDeviceID() int {
+	dID += 1
+	return dID
 }

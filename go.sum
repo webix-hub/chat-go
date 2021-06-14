@@ -61,6 +61,8 @@ github.com/mkozhukh/go-remote v0.0.0-20210401140519-e96217b60036 h1:qziGeh7i74UL
 github.com/mkozhukh/go-remote v0.0.0-20210401140519-e96217b60036/go.mod h1:w2xffKBHaKhHP3oGnKKYINhns7iGP6ymO58LVMjQ+Bk=
 github.com/mkozhukh/go-remote v0.0.0-20210406131932-82b0b9e424ca h1:0lUUT8Ftr8QG2o/Yg7lGc3O5AIbDQ0d7IH3619bRYak=
 github.com/mkozhukh/go-remote v0.0.0-20210406131932-82b0b9e424ca/go.mod h1:w2xffKBHaKhHP3oGnKKYINhns7iGP6ymO58LVMjQ+Bk=
+github.com/mkozhukh/go-remote v0.0.0-20210614081926-7e5d2122344e h1:C3pmXJ0Rj5GuPIsmKzhHhAk0ncVdLfAY6DqrP4Faa6U=
+github.com/mkozhukh/go-remote v0.0.0-20210614081926-7e5d2122344e/go.mod h1:w2xffKBHaKhHP3oGnKKYINhns7iGP6ymO58LVMjQ+Bk=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.12.1/go.mod h1:zj2OWP4+oCPe1qIXoGWkgMRwljMUYCdkwsT2108oapk=

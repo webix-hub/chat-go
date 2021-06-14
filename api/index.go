@@ -5,11 +5,13 @@ import (
 	"errors"
 	remote "github.com/mkozhukh/go-remote"
 	"log"
+	"net/http"
 
 	"mkozhukh/chat/data"
 )
 
 type UserID int
+type DeviceID int
 type UserList []data.User
 type ChatList []data.UserChatDetails
 
@@ -39,7 +41,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		}
 
 		// operations in user chats, initiated by others
-		return tm.Msg.UserID != c.User && db.UsersCache.HasChat(c.User, tm.Msg.ChatID)
+		return (tm.Msg.UserID != c.User || tm.Msg.Type >= 900) && db.UsersCache.HasChat(c.User, tm.Msg.ChatID)
 	})
 
 	api.Events.AddGuard("chats", func(m *remote.Message, c *remote.Client) bool {
@@ -71,9 +73,11 @@ func BuildAPI(db *data.DAO) *remote.Server {
 			return false
 		}
 
-		for _, i := range tm.Users {
-			if i == c.User {
-				return true
+		for i := range tm.Users {
+			if tm.Users[i] == c.User {
+				if tm.Devices[i] == 0 || tm.Devices[i] == c.ConnID {
+					return true
+				}
 			}
 		}
 		return false
@@ -84,17 +88,33 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		if u.Status {
 			status = data.StatusOnline
 		}
-
-		go changeOnlineStatus(db, api.Events, u.ID, status, service)
+		go (func() {
+			api.Events.Publish("users", UserEvent{Op: "online", UserID: u.ID, Data: status})
+			db.Users.ChangeOnlineStatus(u.ID, status)
+		})()
 	}
 
-	api.Connect = func(ctx context.Context) (context.Context, error) {
-		id, _ := ctx.Value("user_id").(int)
+	api.Events.ConnHandler = func (u *remote.UserChange) {
+		status := data.StatusOffline
+		if u.Status {
+			status = data.StatusOnline
+		}
+		go service.ChangeOnlineStatus(u.Connection, status)
+	}
+
+	api.Connect = func(r *http.Request) (context.Context, error) {
+		id, _ := r.Context().Value("user_id").(int)
 		if id == 0 {
 			return nil, errors.New("access denied")
 		}
+		device, _ := r.Context().Value("device_id").(int)
+		if device == 0 {
+			return nil, errors.New("access denied")
+		}
 
-		return context.WithValue(ctx, remote.UserValue, id), nil
+		return context.WithValue(
+			context.WithValue(r.Context(), remote.UserValue, id),
+			remote.ConnectionValue, device), nil
 	}
 
 	must(api.AddService("message", &MessagesAPI{db}))
@@ -103,6 +123,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 
 	// provide user's id
 	must(api.AddVariable("user", UserID(0)))
+	must(api.AddVariable("device", DeviceID(0)))
 	// after chat initialization, user will always need this info
 	// so instead of call waiting, provide it from the start
 	must(api.AddVariable("users", UserList{}))
@@ -113,16 +134,14 @@ func BuildAPI(db *data.DAO) *remote.Server {
 	return api
 }
 
-func changeOnlineStatus(dao *data.DAO, events *remote.Hub, user int, status int, service *CallService) {
-	events.Publish("users", UserEvent{Op: "online", UserID: user, Data: status})
-	dao.Users.ChangeOnlineStatus(user, status)
-	service.ChangeOnlineStatus(user, status, events)
-}
-
 func handleDependencies(api *remote.Server, db *data.DAO) {
 	must(api.Dependencies.AddProvider(func(ctx context.Context) UserID {
 		id, _ := ctx.Value("user_id").(int)
 		return UserID(id)
+	}))
+	must(api.Dependencies.AddProvider(func(ctx context.Context) DeviceID {
+		id, _ := ctx.Value("device_id").(int)
+		return DeviceID(id)
 	}))
 	must(api.Dependencies.AddProvider(func(ctx context.Context) ChatList {
 		id, _ := ctx.Value("user_id").(int)
@@ -138,7 +157,8 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 	}))
 	must(api.Dependencies.AddProvider(func(ctx context.Context) Call {
 		id, _ := ctx.Value("user_id").(int)
-		call, _ := db.Calls.GetByUser(id)
+		device, _ := ctx.Value("device_id").(int)
+		call, _ := db.Calls.GetByUser(id, device)
 		return Call{
 			ID:     call.ID,
 			Status: call.Status,

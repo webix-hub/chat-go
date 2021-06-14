@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	remote "github.com/mkozhukh/go-remote"
+	"math"
 	"mkozhukh/chat/data"
 	"time"
 )
@@ -10,13 +12,13 @@ import (
 type CallService struct {
 	cDAO data.CallsDAO
 	mDAO data.MessagesDAO
-	hub *remote.Hub
+	hub  *remote.Hub
 
-	offlineUsers map[int]time.Time
+	offlineDevices map[int]time.Time
 }
 
 func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, hub *remote.Hub) *CallService {
-	d := CallService{cDAO: cdao, mDAO:mdao, hub: hub, offlineUsers: make(map[int]time.Time)}
+	d := CallService{cDAO: cdao, mDAO: mdao, hub: hub, offlineDevices: make(map[int]time.Time)}
 	go d.runCheckOfflineUsers()
 
 	return &d
@@ -38,14 +40,14 @@ func (d *CallService) dropNotAccepted(id int) {
 	}
 }
 
-func (d *CallService) ChangeOnlineStatus(user int, status int, events *remote.Hub) {
+func (d *CallService) ChangeOnlineStatus(device int, status int) {
 	if status == data.StatusOnline {
-		delete(d.offlineUsers, user)
+		delete(d.offlineDevices, device)
 		return
 	}
 
 	if status == data.StatusOffline {
-		d.offlineUsers[user] = time.Now()
+		d.offlineDevices[device] = time.Now()
 	}
 }
 
@@ -56,14 +58,14 @@ func (d *CallService) runCheckOfflineUsers() {
 }
 
 func (d *CallService) checkOfflineUsers() {
-	if len(d.offlineUsers) == 0 {
+	if len(d.offlineDevices) == 0 {
 		return
 	}
 
 	check := time.Now().Add(-15 * time.Second)
-	for key, offTime := range d.offlineUsers {
+	for key, offTime := range d.offlineDevices {
 		if offTime.Before(check) {
-			c, err := d.cDAO.GetByUser(key)
+			c, err := d.cDAO.GetByDevice(key)
 			if err != nil {
 				return
 			}
@@ -71,21 +73,23 @@ func (d *CallService) checkOfflineUsers() {
 			_ = d.callStatusUpdate(&c, data.CallStatusLost)
 			d.sendEvent(&c)
 
-			delete(d.offlineUsers, key)
+			delete(d.offlineDevices, key)
 		}
 	}
 }
 func (d *CallService) sendEvent(c *data.Call) {
 	msg, _ := json.Marshal(&Call{
-		ID:     c.ID,
-		Status: c.Status,
-		Start:  c.Start,
-		Users:  []int{c.FromUserID, c.ToUserID},
+		ID:      c.ID,
+		Status:  c.Status,
+		Start:   c.Start,
+		Users:   []int{c.FromUserID, c.ToUserID},
+		Devices: []int{c.FromDeviceID, c.ToDeviceID},
 	})
 	d.hub.Publish("signal", Signal{
 		Type:    "connect",
 		Message: string(msg),
 		Users:   []int{c.FromUserID, c.ToUserID},
+		Devices: []int{c.FromDeviceID, c.ToDeviceID},
 	})
 }
 
@@ -94,27 +98,57 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 	if err != nil {
 		return err
 	}
-	if status == data.CallStatusAccepted && c.ChatID != 0{
-		err = d.mDAO.Save(&data.Message{
+
+	if status == data.CallStatusAccepted && c.ChatID != 0 {
+		msg := &data.Message{
 			Text:   "",
 			ChatID: c.ChatID,
-			UserID: 0,
+			UserID: c.FromUserID,
 			Type:   data.CallStartMessage,
-		})
+		}
+		err = d.mDAO.Save(msg)
 		if err != nil {
 			return err
 		}
+
+		c.MessageID = msg.ID
+		err = d.cDAO.Save(c)
+		if err != nil {
+			return err
+		}
+
+		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg })
 	}
-	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0{
-		err = d.mDAO.Save(&data.Message{
+
+	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0 && c.MessageID != 0 {
+		msg, err := d.mDAO.GetOne(c.MessageID)
+		if err != nil {
+			return err
+		}
+
+		diff := time.Now().Sub(*c.Start).Seconds()
+		msg.Text = fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff) % 60)
+		err = d.mDAO.Save(msg)
+		if err != nil {
+			return err
+		}
+
+		d.hub.Publish("messages", MessageEvent{Op: "update", Msg: msg })
+	}
+
+	if (status == data.CallStatusRejected || status == data.CallStatusIgnored) && c.ChatID != 0 {
+		msg := &data.Message{
 			Text:   "",
 			ChatID: c.ChatID,
-			UserID: 0,
-			Type:   data.CallEndMessage,
-		})
+			UserID: c.FromUserID,
+			Type:   data.CallMissedMessage,
+		}
+		err = d.mDAO.Save(msg)
 		if err != nil {
 			return err
 		}
+
+		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg })
 	}
 
 	return nil

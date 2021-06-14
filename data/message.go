@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	TextMessage      = 1
-	CallStartMessage = 2
-	CallEndMessage   = 3
+	CallStartMessage  = 900
+	CallEndMessage    = 901
+	CallMissedMessage = 902
 )
 
 type MessagesDAO struct {
