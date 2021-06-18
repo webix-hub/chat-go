@@ -29,7 +29,6 @@ type Call struct {
 	FromDeviceID int        `gorm:"column:from_device"`
 	ToDeviceID   int        `gorm:"column:to_device"`
 	ChatID       int        `gorm:"column:chat_id"`
-	MessageID    int        `gorm:"column:message_id"`
 }
 
 func NewCallsDAO(dao *DAO, db *gorm.DB) CallsDAO {

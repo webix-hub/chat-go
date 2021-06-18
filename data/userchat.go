@@ -32,16 +32,17 @@ type UserChat struct {
 
 type UserChatDetails struct {
 	UserChat
-	Name    string     `json:"name"`
-	Date    *time.Time `json:"date"`
-	Message string     `json:"message"`
-	Users   []int      `json:"users"`
-	Avatar  string     `json:"avatar"`
+	Name        string     `json:"name"`
+	Date        *time.Time `json:"date"`
+	Message     string     `json:"message"`
+	MessageType int        `gorm:"column:messagetype" json:"message_type"`
+	Users       []int      `json:"users"`
+	Avatar      string     `json:"avatar"`
 }
 
 var getUserChatsSQL = "select chats.id, chats.name, chats.avatar, " +
 	"user_chats.direct_id, user_chats.status, user_chats.unread_count, " +
-	"messages.text as message, messages.date " +
+	"messages.text as message, messages.type as messagetype, messages.date " +
 	"from user_chats " +
 	"inner join chats on user_chats.chat_id = chats.id " +
 	"left outer join messages on chats.last_message = messages.id " +
@@ -50,7 +51,7 @@ var getUserChatsSQL = "select chats.id, chats.name, chats.avatar, " +
 
 var getUserChatSQL = "select chats.id, chats.name, chats.avatar, " +
 	"user_chats.direct_id, user_chats.status, user_chats.unread_count, " +
-	"messages.text as message, messages.date " +
+	"messages.text as message, messages.type as messagetype, messages.date " +
 	"from user_chats " +
 	"inner join chats on user_chats.chat_id = chats.id " +
 	"left outer join messages on chats.last_message = messages.id " +
@@ -58,7 +59,7 @@ var getUserChatSQL = "select chats.id, chats.name, chats.avatar, " +
 	"order by messages.date desc"
 
 var getUserChatLeaveSQL = "select chats.id, chats.name, chats.avatar, " +
-	"messages.text as message, messages.date " +
+	"messages.text as message, messages.type as messagetype, messages.date " +
 	"from chats " +
 	"left outer join messages on chats.last_message = messages.id " +
 	"where chats.id = ?"

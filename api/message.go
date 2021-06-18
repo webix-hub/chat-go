@@ -94,7 +94,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, events *remo
 
 	events.Publish("messages", MessageEvent{Op: "update", Msg: msg})
 	if ch.LastMessage == msg.ID {
-		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, Date: &msg.Date}, UserId: 0})
+		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: msg.Type, Date: &msg.Date}, UserId: 0})
 	}
 
 	// [FIXME] we must not increment non-zero counters
@@ -129,7 +129,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, events *remote.Hub) error
 	events.Publish("messages", MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}})
 	if ch.LastMessage == msg.ID {
 		msg, err = m.db.Chats.SetLastMessage(msg.ChatID, nil)
-		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, Date: &msg.Date}, UserId: 0})
+		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: 0, Date: &msg.Date}, UserId: 0})
 	}
 
 	return nil

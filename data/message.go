@@ -8,7 +8,7 @@ import (
 
 const (
 	CallStartMessage  = 900
-	CallEndMessage    = 901
+	CallRejectedMessage    = 901
 	CallMissedMessage = 902
 )
 

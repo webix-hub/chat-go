@@ -12,13 +12,22 @@ import (
 type CallService struct {
 	cDAO data.CallsDAO
 	mDAO data.MessagesDAO
+	chDAO data.ChatsDAO
+	uchDAO data.UserChatsDAO
 	hub  *remote.Hub
 
 	offlineDevices map[int]time.Time
 }
 
-func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, hub *remote.Hub) *CallService {
-	d := CallService{cDAO: cdao, mDAO: mdao, hub: hub, offlineDevices: make(map[int]time.Time)}
+func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, chdao data.ChatsDAO, uchdao data.UserChatsDAO, hub *remote.Hub) *CallService {
+	d := CallService{
+		cDAO: cdao,
+		mDAO: mdao,
+		chDAO:chdao,
+		uchDAO: uchdao,
+		hub: hub,
+		offlineDevices: make(map[int]time.Time),
+	}
 	go d.runCheckOfflineUsers()
 
 	return &d
@@ -99,9 +108,11 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 		return err
 	}
 
-	if status == data.CallStatusAccepted && c.ChatID != 0 {
+	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0 {
+		diff := time.Now().Sub(*c.Start).Seconds()
 		msg := &data.Message{
-			Text:   "",
+			Date: *c.Start,
+			Text:   fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff)%60),
 			ChatID: c.ChatID,
 			UserID: c.FromUserID,
 			Type:   data.CallStartMessage,
@@ -111,32 +122,25 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			return err
 		}
 
-		c.MessageID = msg.ID
-		err = d.cDAO.Save(c)
-		if err != nil {
-			return err
-		}
-
-		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg })
+		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
 	}
 
-	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0 && c.MessageID != 0 {
-		msg, err := d.mDAO.GetOne(c.MessageID)
-		if err != nil {
-			return err
+	if (status == data.CallStatusRejected) && c.ChatID != 0 {
+		msg := &data.Message{
+			Text:   "",
+			ChatID: c.ChatID,
+			UserID: c.FromUserID,
+			Type:   data.CallRejectedMessage,
 		}
-
-		diff := time.Now().Sub(*c.Start).Seconds()
-		msg.Text = fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff) % 60)
 		err = d.mDAO.Save(msg)
 		if err != nil {
 			return err
 		}
 
-		d.hub.Publish("messages", MessageEvent{Op: "update", Msg: msg })
+		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
 	}
 
-	if (status == data.CallStatusRejected || status == data.CallStatusIgnored) && c.ChatID != 0 {
+	if (status == data.CallStatusIgnored) && c.ChatID != 0 {
 		msg := &data.Message{
 			Text:   "",
 			ChatID: c.ChatID,
@@ -148,7 +152,17 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			return err
 		}
 
-		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg })
+		d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
+
+		err = d.uchDAO.IncrementCounter(c.ChatID, int(c.FromUserID))
+		if err != nil {
+			return err
+		}
+
+		_, err = d.chDAO.SetLastMessage(c.ChatID, msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

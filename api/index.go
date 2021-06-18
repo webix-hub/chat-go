@@ -32,7 +32,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		WebSocket: true,
 	})
 
-	service := newCallService(db.Calls, db.Messages, api.Events)
+	service := newCallService(db.Calls, db.Messages, db.Chats, db.UserChats, api.Events)
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(MessageEvent)
@@ -94,7 +94,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		})()
 	}
 
-	api.Events.ConnHandler = func (u *remote.UserChange) {
+	api.Events.ConnHandler = func(u *remote.UserChange) {
 		status := data.StatusOffline
 		if u.Status {
 			status = data.StatusOnline
