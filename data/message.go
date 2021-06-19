@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	CallStartMessage  = 900
-	CallRejectedMessage    = 901
-	CallMissedMessage = 902
+	CallStartMessage    = 900
+	CallRejectedMessage = 901
+	CallMissedMessage   = 902
 )
 
 type MessagesDAO struct {
@@ -49,7 +49,7 @@ func (d *MessagesDAO) GetLast(chatId int) (*Message, error) {
 func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 	msgs := make([]Message, 0)
 
-	err := d.db.Where("chat_id = ?", chatID).Find(&msgs).Error
+	err := d.db.Where("chat_id = ?", chatID).Order("date ASC").Find(&msgs).Error
 
 	logError(err)
 	return msgs, err
