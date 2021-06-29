@@ -34,7 +34,7 @@ func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, chdao data.ChatsD
 }
 
 func (d *CallService) StartCall(id int) {
-	time.AfterFunc(10*time.Second, func() { d.dropNotAccepted(id) })
+	time.AfterFunc(30*time.Second, func() { d.dropNotAccepted(id) })
 }
 
 func (d *CallService) dropNotAccepted(id int) {
