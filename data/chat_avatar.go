@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"path"
@@ -16,7 +17,7 @@ func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, serve
 		return "", err
 	}
 
-	target, err := ioutil.TempFile(filepath.Join(path), "*.jpg")
+	target, err := ioutil.TempFile(path, "*.jpg")
 	if err != nil {
 		return "", err
 	}
@@ -29,7 +30,14 @@ func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, serve
 	url := getAvatarURL(idStr, filepath.Base(target.Name()), server)
 	// get existing chat
 	if id != 0 {
-		err = d.db.Table("chats").Where("chat_id = ?", id).Update("avatar", url).Error
+		ch := Chat{}
+		d.db.Find(&ch, id)
+		if ch.ID == 0 {
+			return "", errors.New("incorrect chat id")
+		}
+
+		ch.Avatar = url
+		err = d.db.Save(&ch).Error
 		if err != nil {
 			return "", err
 		}

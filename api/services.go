@@ -117,12 +117,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			UserID: c.FromUserID,
 			Type:   data.CallStartMessage,
 		}
-		err = d.mDAO.Save(msg)
-		if err != nil {
-			return err
-		}
-
-		err = d.sendMessage(c, msg, err)
+		err = d.mDAO.SaveAndSend(c.ChatID, msg)
 		if err != nil {
 			return err
 		}
@@ -135,12 +130,8 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			UserID: c.FromUserID,
 			Type:   data.CallRejectedMessage,
 		}
-		err = d.mDAO.Save(msg)
-		if err != nil {
-			return err
-		}
 
-		err = d.sendMessage(c, msg, err)
+		err = d.mDAO.SaveAndSend(c.ChatID, msg)
 		if err != nil {
 			return err
 		}
@@ -153,31 +144,11 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			UserID: c.FromUserID,
 			Type:   data.CallMissedMessage,
 		}
-		err = d.mDAO.Save(msg)
+
+		err = d.mDAO.SaveAndSend(c.ChatID, msg)
 		if err != nil {
 			return err
 		}
-
-		err = d.sendMessage(c, msg, err)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) error {
-	d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
-
-	err = d.uchDAO.IncrementCounter(c.ChatID, int(c.FromUserID))
-	if err != nil {
-		return err
-	}
-
-	_, err = d.chDAO.SetLastMessage(c.ChatID, msg)
-	if err != nil {
-		return err
 	}
 
 	return nil

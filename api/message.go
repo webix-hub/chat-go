@@ -11,12 +11,6 @@ type MessagesAPI struct {
 	db *data.DAO
 }
 
-type MessageEvent struct {
-	Op     string        `json:"op"`
-	Msg    *data.Message `json:"msg"`
-	Origin string        `json:"origin,omitempty"`
-}
-
 func (m *MessagesAPI) GetAll(chatId int, userId UserID) ([]data.Message, error) {
 	if !m.db.UsersCache.HasChat(int(userId), chatId) {
 		return nil, AccessDeniedError
@@ -50,19 +44,7 @@ func (m *MessagesAPI) Add(text string, chatId int, origin string, userId UserID,
 		Date:   time.Now(),
 	}
 
-	err := m.db.Messages.Save(&msg)
-	if err != nil {
-		return nil, err
-	}
-
-	events.Publish("messages", MessageEvent{Op: "add", Msg: &msg, Origin: origin})
-
-	err = m.db.UserChats.IncrementCounter(chatId, int(userId))
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = m.db.Chats.SetLastMessage(chatId, &msg)
+	err := m.db.Messages.SaveAndSend(chatId, &msg)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +74,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, events *remo
 		return nil, err
 	}
 
-	events.Publish("messages", MessageEvent{Op: "update", Msg: msg})
+	events.Publish("messages", data.MessageEvent{Op: "update", Msg: msg})
 	if ch.LastMessage == msg.ID {
 		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: msg.Type, Date: &msg.Date}, UserId: 0})
 	}
@@ -126,7 +108,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, events *remote.Hub) error
 		return err
 	}
 
-	events.Publish("messages", MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}})
+	events.Publish("messages", data.MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}})
 	if ch.LastMessage == msg.ID {
 		msg, err = m.db.Chats.SetLastMessage(msg.ChatID, nil)
 		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: 0, Date: &msg.Date}, UserId: 0})
