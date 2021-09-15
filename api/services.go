@@ -88,17 +88,26 @@ func (d *CallService) checkOfflineUsers() {
 }
 func (d *CallService) sendEvent(c *data.Call) {
 	msg, _ := json.Marshal(&Call{
-		ID:      c.ID,
-		Status:  c.Status,
-		Start:   c.Start,
-		Users:   []int{c.FromUserID, c.ToUserID},
-		Devices: []int{c.FromDeviceID, c.ToDeviceID},
+		ID:     c.ID,
+		Status: c.Status,
+		Start:  c.Start,
+		Users:  []int{c.FromUserID, c.ToUserID},
 	})
 	d.hub.Publish("signal", Signal{
 		Type:    "connect",
 		Message: string(msg),
 		Users:   []int{c.FromUserID, c.ToUserID},
 		Devices: []int{c.FromDeviceID, c.ToDeviceID},
+	})
+}
+
+func (d *CallService) broadcastToUserDevices(targetUser int, payload interface{}) {
+	msg, _ := json.Marshal(&payload)
+	d.hub.Publish("signal", Signal{
+		Type:    "connect",
+		Message: string(msg),
+		Users:   []int{targetUser},
+		Devices: []int{0},
 	})
 }
 

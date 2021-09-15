@@ -8,7 +8,7 @@ require (
 	github.com/go-chi/cors v1.0.0
 	github.com/jinzhu/configor v1.1.1
 	github.com/jinzhu/gorm v1.9.12
-	github.com/mkozhukh/go-remote v0.0.0-20210614081926-7e5d2122344e // indirect
+	github.com/mkozhukh/go-remote v0.0.0-20210614081926-7e5d2122344e
 	github.com/pascaldekloe/jwt v1.9.0
 	github.com/unrolled/render v1.0.3
 )

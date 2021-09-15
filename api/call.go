@@ -8,11 +8,13 @@ import (
 )
 
 type Call struct {
-	ID      int        `json:"id"`
-	Status  int        `json:"status"`
-	Users   []int      `json:"users"`
-	Devices []int      `json:"devices"`
-	Start   *time.Time `json:"start"`
+	ID     int        `json:"id"`
+	Status int        `json:"status"`
+	Users  []int      `json:"users"`
+	Start  *time.Time `json:"start"`
+}
+type DirectCall struct {
+	Devices []int `json:"devices"`
 }
 
 type CallsAPI struct {
@@ -37,15 +39,14 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 	d.service.StartCall(call.ID)
 
 	return &Call{
-		ID:      call.ID,
-		Status:  call.Status,
-		Users:   []int{call.FromUserID, call.ToUserID},
-		Devices: []int{call.FromDeviceID, call.ToDeviceID},
-		Start:   nil,
+		ID:     call.ID,
+		Status: call.Status,
+		Users:  []int{call.FromUserID, call.ToUserID},
+		Start:  nil,
 	}, nil
 }
 
-func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceID DeviceID) (int, error) {
+func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceID DeviceID, hub *remote.Hub) (int, error) {
 	call, err := d.db.Calls.Get(id)
 	if err != nil {
 		return 0, err
@@ -60,8 +61,10 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceID DeviceID) (
 		return 0, fmt.Errorf("%s", "Access denied")
 	}
 
+	needToInformOthers := false
 	if status == data.CallStatusAccepted && call.ToDeviceID == 0 {
 		call.ToDeviceID = int(deviceID)
+		needToInformOthers = true
 	}
 
 	err = d.service.callStatusUpdate(&call, status)
@@ -70,6 +73,12 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceID DeviceID) (
 	}
 
 	d.service.sendEvent(&call)
+
+	if needToInformOthers {
+		d.service.broadcastToUserDevices(call.ToUserID, DirectCall{
+			Devices: []int{ call.FromDeviceID, call.ToDeviceID },
+		})
+	}
 
 	return call.Status, nil
 }
