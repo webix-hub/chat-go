@@ -35,8 +35,12 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 		return nil, err
 	}
 
-	d.service.sendEvent(&call)
-	d.service.StartCall(call.ID)
+	if call.Status != data.CallStatusRejected {
+		d.service.sendEvent(&call)
+		d.service.StartCall(call.ID)
+	} else {
+		d.service.RejectCall(&call)
+	}
 
 	return &Call{
 		ID:     call.ID,
@@ -76,7 +80,7 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceID DeviceID, h
 
 	if needToInformOthers {
 		d.service.broadcastToUserDevices(call.ToUserID, DirectCall{
-			Devices: []int{ call.FromDeviceID, call.ToDeviceID },
+			Devices: []int{call.FromDeviceID, call.ToDeviceID},
 		})
 	}
 

@@ -36,6 +36,9 @@ func NewCallsDAO(dao *DAO, db *gorm.DB) CallsDAO {
 }
 
 func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
+	check := Call{}
+	d.db.Find(&check, "(`from` IN(?,?) or `to` IN (?,?) ) and (status = ? or status = ?)", from, to, from, to, CallStatusActive, CallStatusInitiated)
+
 	c := Call{
 		FromUserID:   from,
 		FromDeviceID: device,
@@ -45,6 +48,9 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 		ChatID:       chatId,
 	}
 
+	if check.ID != 0 {
+		c.Status = CallStatusRejected
+	}
 	err := d.db.Save(&c).Error
 	if err != nil {
 		return c, err
