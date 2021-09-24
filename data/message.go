@@ -56,6 +56,7 @@ func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 }
 
 func (d *MessagesDAO) Save(m *Message) error {
+	m.Date = time.Now()
 	err := d.db.Save(&m).Error
 	logError(err)
 
