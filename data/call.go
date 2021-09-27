@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"github.com/jinzhu/gorm"
 	"time"
 )
@@ -36,6 +37,13 @@ func NewCallsDAO(dao *DAO, db *gorm.DB) CallsDAO {
 }
 
 func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
+	check := Call{}
+	d.db.Find(&check, "(`from` IN(?,?) or `to` IN (?,?) ) and (status = ? or status = ?)", from, to, from, to, CallStatusActive, CallStatusInitiated)
+
+	if check.FromUserID == from || check.ToUserID == from {
+		return Call{}, errors.New("already in the call")
+	}
+
 	c := Call{
 		FromUserID:   from,
 		FromDeviceID: device,
@@ -45,6 +53,9 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 		ChatID:       chatId,
 	}
 
+	if check.ID != 0 {
+		c.Status = CallStatusRejected
+	}
 	err := d.db.Save(&c).Error
 	if err != nil {
 		return c, err

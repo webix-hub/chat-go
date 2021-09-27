@@ -239,3 +239,17 @@ func getUserId(r *http.Request) int {
 
 	return t
 }
+
+func getDeviceId(r *http.Request) int {
+	u := r.Context().Value("device_id")
+	if u == nil {
+		return 0
+	}
+
+	t, ok := u.(int)
+	if !ok {
+		return 0
+	}
+
+	return t
+}

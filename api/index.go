@@ -41,7 +41,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 		}
 
 		// operations in user chats, initiated by others
-		return (tm.Msg.UserID != c.User || tm.Msg.Type >= 900) && db.UsersCache.HasChat(c.User, tm.Msg.ChatID)
+		return int(tm.From) != c.ConnID && db.UsersCache.HasChat(c.User, tm.Msg.ChatID)
 	})
 
 	api.Events.AddGuard("chats", func(m *remote.Message, c *remote.Client) bool {

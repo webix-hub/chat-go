@@ -22,6 +22,7 @@ type MessageEvent struct {
 	Op     string   `json:"op"`
 	Msg    *Message `json:"msg"`
 	Origin string   `json:"origin,omitempty"`
+	From   int
 }
 
 func NewMessagesDAO(dao *DAO, db *gorm.DB) MessagesDAO {
@@ -64,6 +65,7 @@ func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 }
 
 func (d *MessagesDAO) Save(m *Message) error {
+	m.Date = time.Now()
 	err := d.db.Save(&m).Error
 	logError(err)
 
@@ -77,17 +79,17 @@ func (d *MessagesDAO) Delete(msgID int) error {
 	return err
 }
 
-func (d *MessagesDAO) SaveAndSend(c int, msg *Message) error {
+func (d *MessagesDAO) SaveAndSend(c int, msg *Message, origin string, from int) error {
 	err := d.Save(msg)
 	if err != nil {
 		return err
 	}
 
-	return d.Send(c, msg)
+	return d.Send(c, msg, origin, from)
 }
 
-func (d *MessagesDAO) Send(c int, msg *Message) error {
-	d.dao.Hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
+func (d *MessagesDAO) Send(c int, msg *Message, origin string, from int) error {
+	d.dao.Hub.Publish("messages", MessageEvent{Op: "add", Msg: msg, Origin: origin, From: from })
 
 	err := d.dao.UserChats.IncrementCounter(c, msg.UserID)
 	if err != nil {

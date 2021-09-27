@@ -77,7 +77,7 @@ func (d *FilesDAO) PostFile(id int, file io.ReadSeeker, name, path, server strin
 		Type:    AttachedFile,
 		Related: tf.ID,
 	}
-	return d.dao.Messages.SaveAndSend(id, &msg)
+	return d.dao.Messages.SaveAndSend(id, &msg, "", 0)
 }
 
 func (d *FilesDAO) GetOne(id string) *File {
