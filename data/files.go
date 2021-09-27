@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,7 +37,7 @@ func (d *FilesDAO) PostFile(id int, file io.ReadSeeker, name, path, server strin
 	}
 	defer target.Close()
 
-	_, err = io.Copy(target, file)
+	size, err := io.Copy(target, file)
 	if err != nil {
 		return err
 	}
@@ -49,11 +50,11 @@ func (d *FilesDAO) PostFile(id int, file io.ReadSeeker, name, path, server strin
 	}
 
 	url := getFileURL(server, tf.UID, name)
-	mText := url + "\n" + name
+	sizeStr := strconv.Itoa(int(size))
+	mText := url + "\n" + name + "\n" + sizeStr
 
 	ext := strings.ToLower(filepath.Ext(name))
 	if ext == ".jpg" || ext == ".png" || ext == ".gif" {
-
 		previewName := target.Name() + ".preview"
 		preview, err := os.Create(previewName)
 		if err != nil {
