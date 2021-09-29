@@ -89,7 +89,7 @@ func (d *MessagesDAO) SaveAndSend(c int, msg *Message, origin string, from int) 
 }
 
 func (d *MessagesDAO) Send(c int, msg *Message, origin string, from int) error {
-	d.dao.Hub.Publish("messages", MessageEvent{Op: "add", Msg: msg, Origin: origin, From: from })
+	d.dao.Hub.Publish("messages", MessageEvent{Op: "add", Msg: msg, Origin: origin, From: from})
 
 	err := d.dao.UserChats.IncrementCounter(c, msg.UserID)
 	if err != nil {

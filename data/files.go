@@ -30,7 +30,7 @@ func NewFilesDAO(dao *DAO, db *gorm.DB) FilesDAO {
 	return FilesDAO{dao: dao, db: db}
 }
 
-func (d *FilesDAO) PostFile(id int, file io.ReadSeeker, name, path, server string) error {
+func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server string) error {
 	target, err := ioutil.TempFile(path, "*")
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (d *FilesDAO) PostFile(id int, file io.ReadSeeker, name, path, server strin
 		Text:    mText,
 		Date:    time.Now(),
 		ChatID:  id,
-		UserID:  0,
+		UserID:  uid,
 		Type:    AttachedFile,
 		Related: tf.ID,
 	}

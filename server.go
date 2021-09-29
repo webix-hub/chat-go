@@ -132,7 +132,7 @@ func main() {
 		}
 		defer file.Close()
 
-		err = db.Files.PostFile(cid, file, name.Filename, fDir, Config.Server.Public)
+		err = db.Files.PostFile(cid, uid, file, name.Filename, fDir, Config.Server.Public)
 		if err != nil {
 			format.JSON(w, 200, UploadResponse{Status: "error"})
 		} else {
