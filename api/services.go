@@ -88,17 +88,26 @@ func (d *CallService) checkOfflineUsers() {
 }
 func (d *CallService) sendEvent(c *data.Call) {
 	msg, _ := json.Marshal(&Call{
-		ID:      c.ID,
-		Status:  c.Status,
-		Start:   c.Start,
-		Users:   []int{c.FromUserID, c.ToUserID},
-		Devices: []int{c.FromDeviceID, c.ToDeviceID},
+		ID:     c.ID,
+		Status: c.Status,
+		Start:  c.Start,
+		Users:  []int{c.FromUserID, c.ToUserID},
 	})
 	d.hub.Publish("signal", Signal{
 		Type:    "connect",
 		Message: string(msg),
 		Users:   []int{c.FromUserID, c.ToUserID},
 		Devices: []int{c.FromDeviceID, c.ToDeviceID},
+	})
+}
+
+func (d *CallService) broadcastToUserDevices(targetUser int, payload interface{}) {
+	msg, _ := json.Marshal(&payload)
+	d.hub.Publish("signal", Signal{
+		Type:    "connect",
+		Message: string(msg),
+		Users:   []int{targetUser},
+		Devices: []int{0},
 	})
 }
 
@@ -129,21 +138,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 	}
 
 	if (status == data.CallStatusRejected) && c.ChatID != 0 {
-		msg := &data.Message{
-			Text:   "",
-			ChatID: c.ChatID,
-			UserID: c.FromUserID,
-			Type:   data.CallRejectedMessage,
-		}
-		err = d.mDAO.Save(msg)
-		if err != nil {
-			return err
-		}
-
-		err = d.sendMessage(c, msg, err)
-		if err != nil {
-			return err
-		}
+		return d.RejectCall(c)
 	}
 
 	if (status == data.CallStatusIgnored) && c.ChatID != 0 {
@@ -176,6 +171,26 @@ func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) er
 	}
 
 	_, err = d.chDAO.SetLastMessage(c.ChatID, msg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *CallService) RejectCall(c *data.Call) error {
+	msg := &data.Message{
+		Text:   "",
+		ChatID: c.ChatID,
+		UserID: c.FromUserID,
+		Type:   data.CallRejectedMessage,
+	}
+	err := d.mDAO.Save(msg)
+	if err != nil {
+		return err
+	}
+
+	err = d.sendMessage(c, msg, err)
 	if err != nil {
 		return err
 	}
