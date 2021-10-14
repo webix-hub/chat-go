@@ -54,7 +54,7 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 	mText := url + "\n" + name + "\n" + sizeStr
 
 	ext := strings.ToLower(filepath.Ext(name))
-	if ext == ".jpg" || ext == ".png" || ext == ".gif" {
+	if ext == ".jpeg" || ext == ".jpg" || ext == ".png" || ext == ".gif" {
 		previewName := target.Name() + ".preview"
 		preview, err := os.Create(previewName)
 		if err != nil {
