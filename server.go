@@ -134,6 +134,7 @@ func main() {
 
 		err = db.Files.PostFile(cid, uid, file, name.Filename, fDir, Config.Server.Public)
 		if err != nil {
+			log.Println("file upload error", err.Error())
 			format.JSON(w, 200, UploadResponse{Status: "error"})
 		} else {
 			format.JSON(w, 200, UploadResponse{Status: "server"})

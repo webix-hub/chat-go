@@ -2,6 +2,9 @@ package data
 
 import (
 	"errors"
+	"image"
+	"image/color"
+	"image/draw"
 	"io"
 	"io/ioutil"
 	"path"
@@ -56,8 +59,23 @@ func getImagePreview(source io.Reader, width, height int, target io.Writer) erro
 		return err
 	}
 
-	dst := imaging.Thumbnail(src, width, height, imaging.Lanczos)
-	err = imaging.Encode(target, dst, imaging.JPEG)
+	size := src.Bounds().Max
+	// do not resize small images
+	if size.X > width || size.Y > height {
+		dst := imaging.Thumbnail(src, width, height, imaging.Lanczos)
+		err = imaging.Encode(target, dst, imaging.JPEG)
+	} else {
+		dst := image.NewRGBA(image.Rect(0, 0, width, height))
+		bg := color.RGBA{255, 255, 255, 255} //  R, G, B, Alpha
+		draw.Draw(dst, dst.Bounds(), &image.Uniform{bg}, image.Point{}, draw.Src)
+
+		offset := image.Point{
+			(width - size.X) / 2,
+			(height - size.Y) / 2,
+		}
+		draw.Draw(dst, src.Bounds().Add(offset), src, image.Point{}, draw.Over)
+		err = imaging.Encode(target, dst, imaging.JPEG)
+	}
 
 	if err != nil {
 		return err
