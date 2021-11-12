@@ -1,16 +1,18 @@
 package data
 
 import (
-	"github.com/google/uuid"
-	"github.com/jinzhu/gorm"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 )
 
 type FilesDAO struct {
@@ -55,19 +57,12 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 
 	ext := strings.ToLower(filepath.Ext(name))
 	if ext == ".jpeg" || ext == ".jpg" || ext == ".png" || ext == ".gif" {
-		previewName := target.Name() + ".preview"
-		preview, err := os.Create(previewName)
+		err = createPreview(file, mText, target.Name())
 		if err != nil {
-			return err
+			log.Println("can't create preview:" + err.Error())
+		} else {
+			mText = mText + "\n" + getPreviewURL(server, tf.UID, name)
 		}
-		defer preview.Close()
-
-		err = getImagePreview(file, 300, 300, preview)
-		if err != nil {
-			return err
-		}
-
-		mText = mText + "\n" + getPreviewURL(server, tf.UID, name)
 	}
 
 	msg := Message{
@@ -79,6 +74,22 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 		Related: tf.ID,
 	}
 	return d.dao.Messages.SaveAndSend(id, &msg, "", 0)
+}
+
+func createPreview(file io.ReadSeeker, mText, name string) error {
+	previewName := name + ".preview"
+	preview, err := os.Create(previewName)
+	if err != nil {
+		return err
+	}
+	defer preview.Close()
+
+	err = getImagePreview(file, 300, 300, preview)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *FilesDAO) GetOne(id string) *File {
