@@ -138,3 +138,47 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 
 	return nil
 }
+
+func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) error {
+	v := data.Reaction {
+		MessageId: msgID,
+		Reaction: reaction,
+		UserId: int(userId),
+	}	
+	err := m.db.Reactions.Add(v)
+	if err != nil {
+		return err
+	}
+
+	msg, err := m.db.Messages.GetOne(msgID)
+	if err != nil {
+		return err
+	}
+	msg.Reactions[reaction] = append(msg.Reactions[reaction], int(userId))
+
+	events.Publish("messages", MessageEvent{Op: "add_reaction", Msg: msg, From: deviceId})
+	return nil
+}
+
+func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) error {
+	msg, err := m.db.Messages.GetOne(msgID)
+	if err != nil {
+		return err
+	}
+	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
+		return AccessDeniedError
+	}
+
+	r := data.Reaction {
+		MessageId: msgID,
+		Reaction: reaction,
+		UserId: int(userId),
+	}
+	err = m.db.Reactions.Remove(r)
+	if err != nil {
+		return err
+	}
+
+	events.Publish("messages", MessageEvent{Op: "del_reaction", Msg: msg, From: deviceId})
+	return err
+}
