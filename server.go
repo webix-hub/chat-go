@@ -30,6 +30,10 @@ var format = render.New()
 
 func main() {
 	Config.LoadFromFile("./config.yml")
+	aDir := filepath.Join(Config.Server.Data, "avatars")
+	ensureFolders(aDir)
+	fDir := filepath.Join(Config.Server.Data, "files")
+	ensureFolders(fDir)
 
 	var conn *gorm.DB
 	var err error
@@ -59,6 +63,7 @@ func main() {
 	}
 
 	rapi := api.BuildAPI(db)
+	db.SetHub(rapi.Events)
 
 	// Router
 	r := chi.NewRouter()
@@ -79,9 +84,7 @@ func main() {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := r.Header.Get("Remote-Token")
 			if token == "" {
-				if r.Method == http.MethodGet {
-					token = r.URL.Query().Get("token")
-				}
+				token = r.URL.Query().Get("token")
 			}
 
 			if token != "" {
@@ -111,7 +114,64 @@ func main() {
 		w.Write(token)
 	})
 
-	r.Post("/api/v1/chat/{chatid}/avatar", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/api/v1/chat/{chatId}/file", func(w http.ResponseWriter, r *http.Request) {
+		uid := getUserId(r)
+		cid := chiIntParam(r, "chatId")
+		if !db.UsersCache.HasChat(uid, cid) {
+			http.Error(w, "access denied", http.StatusForbidden)
+			return
+		}
+
+		var limit = int64(10_000_000)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
+		r.ParseMultipartForm(limit)
+
+		file, name, err := r.FormFile("upload")
+		if err != nil {
+			log.Println(err.Error())
+		}
+		defer file.Close()
+
+		err = db.Files.PostFile(cid, uid, file, name.Filename, fDir, Config.Server.Public)
+		if err != nil {
+			log.Println("file upload error", err.Error())
+			format.JSON(w, 200, UploadResponse{Status: "error"})
+		} else {
+			format.JSON(w, 200, UploadResponse{Status: "server"})
+		}
+	})
+	r.Get("/api/v1/files/{fileId}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		fid := chi.URLParam(r, "fileId")
+		fInfo := db.Files.GetOne(fid)
+
+		if fInfo.ID == 0 {
+			http.Error(w, "", http.StatusNotFound)
+			return
+		}
+
+		http.ServeFile(w, r, fInfo.Path)
+	})
+
+	r.Get("/api/v1/files/{fileId}/preview/{name}", func(w http.ResponseWriter, r *http.Request) {
+		fid := chi.URLParam(r, "fileId")
+		fInfo := db.Files.GetOne(fid)
+
+		if fInfo.ID == 0 {
+			http.Error(w, "", http.StatusNotFound)
+			return
+		}
+
+		http.ServeFile(w, r, fInfo.Path+".preview")
+	})
+
+	r.Post("/api/v1/chat/{chatId}/avatar", func(w http.ResponseWriter, r *http.Request) {
+		uid := getUserId(r)
+		cid := chiIntParam(r, "chatId")
+		if !db.UsersCache.HasChat(uid, cid) {
+			http.Error(w, "access denied", http.StatusForbidden)
+			return
+		}
+
 		var limit = int64(4 << 20)
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		r.ParseMultipartForm(limit)
@@ -123,13 +183,13 @@ func main() {
 			log.Println(err.Error())
 		}
 
-		chat, _ := db.Chats.UpdateAvatar(chi.URLParam(r, "chatid"), file, Config.Server.Data, Config.Server.Public)
+		chat, _ := db.Chats.UpdateAvatar(chi.URLParam(r, "chatId"), file, aDir, Config.Server.Public)
 		format.JSON(w, 200, UploadResponse{Status: "server", Value: chat})
 	})
 
-	r.Get("/api/v1/chat/{chatid}/avatar/{file_name}", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/v1/chat/{chatId}/avatar/{file_name}", func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "file_name")
-		filePath := filepath.Join(Config.Server.Data, name)
+		filePath := filepath.Join(aDir, name)
 		http.ServeFile(w, r, filePath)
 	})
 
@@ -143,4 +203,54 @@ var dID = 0
 func newDeviceID() int {
 	dID += 1
 	return dID
+}
+
+func chiIntParam(r *http.Request, key string) int {
+	val := chi.URLParam(r, key)
+	res, err := strconv.Atoi(val)
+	if err != nil {
+		return 0
+	}
+
+	return res
+}
+
+func ensureFolders(path string) {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
+		return
+	}
+
+	err = os.MkdirAll(path, os.ModePerm)
+	if err != nil {
+		log.Fatal("can't create working dir: ", path)
+	}
+}
+
+func getUserId(r *http.Request) int {
+	u := r.Context().Value("user_id")
+	if u == nil {
+		return 0
+	}
+
+	t, ok := u.(int)
+	if !ok {
+		return 0
+	}
+
+	return t
+}
+
+func getDeviceId(r *http.Request) int {
+	u := r.Context().Value("device_id")
+	if u == nil {
+		return 0
+	}
+
+	t, ok := u.(int)
+	if !ok {
+		return 0
+	}
+
+	return t
 }

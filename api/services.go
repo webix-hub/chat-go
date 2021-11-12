@@ -126,12 +126,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			UserID: c.FromUserID,
 			Type:   data.CallStartMessage,
 		}
-		err = d.mDAO.Save(msg)
-		if err != nil {
-			return err
-		}
-
-		err = d.sendMessage(c, msg, err)
+		err = d.mDAO.SaveAndSend(c.ChatID, msg, "", 0)
 		if err != nil {
 			return err
 		}
@@ -148,12 +143,8 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 			UserID: c.FromUserID,
 			Type:   data.CallMissedMessage,
 		}
-		err = d.mDAO.Save(msg)
-		if err != nil {
-			return err
-		}
 
-		err = d.sendMessage(c, msg, err)
+		err = d.mDAO.SaveAndSend(c.ChatID, msg, "", -1)
 		if err != nil {
 			return err
 		}

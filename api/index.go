@@ -35,7 +35,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 	service := newCallService(db.Calls, db.Messages, db.Chats, db.UserChats, api.Events)
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
-		tm, ok := m.Content.(MessageEvent)
+		tm, ok := m.Content.(data.MessageEvent)
 		if !ok {
 			return false
 		}

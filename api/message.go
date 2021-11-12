@@ -51,19 +51,7 @@ func (m *MessagesAPI) Add(text string, chatId int, origin string, userId UserID,
 		Date:   time.Now(),
 	}
 
-	err := m.db.Messages.Save(&msg)
-	if err != nil {
-		return nil, err
-	}
-
-	events.Publish("messages", MessageEvent{Op: "add", Msg: &msg, Origin: origin, From: deviceId})
-
-	err = m.db.UserChats.IncrementCounter(chatId, int(userId))
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = m.db.Chats.SetLastMessage(chatId, &msg)
+	err := m.db.Messages.SaveAndSend(chatId, &msg, origin, int(deviceId))
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +119,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 		"messages",
 		MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}, From: deviceId},
 	)
+
 	if ch.LastMessage == msg.ID {
 		msg, err = m.db.Chats.SetLastMessage(msg.ChatID, nil)
 		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: 0, Date: &msg.Date}, UserId: 0})

@@ -1,6 +1,7 @@
 package data
 
 import (
+	remote "github.com/mkozhukh/go-remote"
 	"log"
 
 	"github.com/jinzhu/gorm"
@@ -22,7 +23,9 @@ type DAO struct {
 	UserChats UserChatsDAO
 	Chats     ChatsDAO
 	Calls     CallsDAO
+	Files     FilesDAO
 
+	Hub        *remote.Hub
 	UsersCache UsersCache
 }
 
@@ -43,6 +46,7 @@ func NewDAO(db *gorm.DB) *DAO {
 	d.Messages = NewMessagesDAO(&d, db)
 	d.UserChats = NewUserChatsDAO(&d, db)
 	d.Calls = NewCallsDAO(&d, db)
+	d.Files = NewFilesDAO(&d, db)
 
 	d.UsersCache = NewUsersCache(&d)
 
@@ -50,6 +54,11 @@ func NewDAO(db *gorm.DB) *DAO {
 	d.db.AutoMigrate(&Message{})
 	d.db.AutoMigrate(&Chat{}, &UserChat{})
 	d.db.AutoMigrate(&Call{})
+	d.db.AutoMigrate(&File{})
 
 	return &d
+}
+
+func (d *DAO) SetHub(r *remote.Hub) {
+	d.Hub = r
 }
