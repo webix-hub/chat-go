@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 
 	"github.com/jinzhu/gorm"
 )
@@ -31,32 +30,10 @@ func (d *ReactionsDAO) Add(reaction Reaction) error {
 }
 
 func (d *ReactionsDAO) Remove(reaction Reaction) error {
-	e := d.Exists(reaction)
-	if (!e) {
-		return errors.New("record not found")
-	}
-	
 	err := d.db.Delete(&reaction).Error
 	logError(err)	
 
 	return err
-}
-
-func (d *ReactionsDAO) Exists(reaction Reaction) bool {
-	r := Reaction{}
-	err := d.db.Where(
-		"message_id = ? and reaction = ? and user_id = ?", 
-		reaction.MessageId, 
-		reaction.Reaction, 
-		reaction.UserId,
-	).Take(&r).Error
-
-	if (err != nil) {
-		logError(err)
-		return false
-	}
-	
-	return true
 }
 
 func (d *ReactionsDAO) GetAllForChat(chatId int) ([]Reaction, error) {
