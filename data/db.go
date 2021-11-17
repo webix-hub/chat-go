@@ -31,7 +31,7 @@ func (d *DAO) GetDB() *gorm.DB {
 	return d.db
 }
 
-func NewDAO(db *gorm.DB) *DAO {
+func NewDAO(db *gorm.DB, config FeaturesConfig) *DAO {
 	d := DAO{}
 
 	if Debug > 1 {
@@ -41,10 +41,10 @@ func NewDAO(db *gorm.DB) *DAO {
 	d.db = db
 	d.Users = NewUsersDAO(&d, db)
 	d.Chats = NewChatsDAO(&d, db)
-	d.Messages = NewMessagesDAO(&d, db)
+	d.Messages = NewMessagesDAO(&d, db, config)
 	d.UserChats = NewUserChatsDAO(&d, db)
 	d.Calls = NewCallsDAO(&d, db)
-	d.Reactions = NewReactionDAO(&d, db)
+	d.Reactions = NewReactionDAO(&d, db, config)
 
 	d.UsersCache = NewUsersCache(&d)
 

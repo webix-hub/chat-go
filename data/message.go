@@ -2,7 +2,7 @@ package data
 
 import (
 	"time"
-
+	
 	"github.com/jinzhu/gorm"
 )
 
@@ -15,10 +15,11 @@ const (
 type MessagesDAO struct {
 	dao *DAO
 	db  *gorm.DB
+	config FeaturesConfig
 }
 
-func NewMessagesDAO(dao *DAO, db *gorm.DB) MessagesDAO {
-	return MessagesDAO{dao, db}
+func NewMessagesDAO(dao *DAO, db *gorm.DB, config FeaturesConfig) MessagesDAO {
+	return MessagesDAO{dao, db, config}
 }
 
 type Message struct {
@@ -38,9 +39,11 @@ func (d *MessagesDAO) GetOne(msgID int) (*Message, error) {
 		logError(err)
 		return nil, err
 	}
-	
-	t.Reactions, err = d.dao.Reactions.GetAllForMessage(msgID)
 
+	if (d.config.WithReactions) {
+		t.Reactions, err = d.dao.Reactions.GetAllForMessage(msgID)
+	}
+	
 	return &t, err
 }
 
@@ -52,8 +55,10 @@ func (d *MessagesDAO) GetLast(chatId int) (*Message, error) {
 		return nil, err
 	}
 	
-	t.Reactions, err = d.dao.Reactions.GetAllForMessage(t.ID)
-	logError(err)
+	if (d.config.WithReactions) {
+		t.Reactions, err = d.dao.Reactions.GetAllForMessage(t.ID)
+		logError(err)
+	}
 
 	return &t, err
 }
@@ -66,12 +71,14 @@ func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 		return nil, err
 	}
 
-	reactions, err := d.dao.Reactions.GetAllForChat(chatID);
-	if (err != nil) {
-		return nil, err
+	if (d.config.WithReactions) {
+		reactions, err := d.dao.Reactions.GetAllForChat(chatID);
+		if (err != nil) {
+			return nil, err
+		}
+	
+		d.dao.Reactions.SetReactions(msgs, reactions)
 	}
-
-	d.dao.Reactions.SetReactions(msgs, reactions)
 
 	return msgs, err
 }
