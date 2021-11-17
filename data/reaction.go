@@ -22,11 +22,11 @@ func NewReactionDAO(dao *DAO, db *gorm.DB) ReactionsDAO {
 	return ReactionsDAO{dao, db}
 }
 
-func (d *ReactionsDAO) Add(reaction Reaction) error {
-	err := d.db.Save(&reaction).Error
-	logError(err)
-
-	return err
+func (d *ReactionsDAO) Add(reaction Reaction) (bool, error) {
+	res := d.db.Save(&reaction)
+	logError(res.Error)
+	
+	return res.RowsAffected != 0, res.Error
 }
 
 func (d *ReactionsDAO) Remove(reaction Reaction) error {
