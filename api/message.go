@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"mkozhukh/chat/data"
 	"time"
 
@@ -143,6 +144,9 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 	msg, err := m.db.Messages.GetOne(msgID)
 	if err != nil {
 		return nil, err
+	}
+	if (msg.UserID == int(userId)) {
+		return nil, errors.New("you cannot add a reaction to your message")
 	}
 	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
 		return nil, AccessDeniedError
