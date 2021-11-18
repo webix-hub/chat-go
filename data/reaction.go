@@ -45,7 +45,12 @@ func (d *ReactionsDAO) Remove(reaction Reaction) error {
 		return errors.New("current chat mode does not support reactions")
 	}
 
-	err := d.db.Delete(&reaction).Error
+	err := d.db.Where(
+		"message_id = ? and reaction = ? and user_id = ?", 
+		reaction.MessageId, 
+		reaction.Reaction, 
+		reaction.UserId,
+	).Delete(&reaction).Error
 	logError(err)	
 
 	return err

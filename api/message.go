@@ -168,13 +168,13 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 	return msg, nil
 }
 
-func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) error {
+func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
 	msg, err := m.db.Messages.GetOne(msgID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
-		return AccessDeniedError
+		return nil, AccessDeniedError
 	}
 
 	r := data.Reaction {
@@ -184,12 +184,28 @@ func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, 
 	}
 	err = m.db.Reactions.Remove(r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	delete(msg.Reactions, r.Reaction)
+	if len(msg.Reactions[reaction]) == 1 {
+		delete(msg.Reactions, reaction);
+	} else {
+		pos := -1
+		for i, id := range msg.Reactions[reaction] {
+			if id == r.UserId {
+				pos = i
+				break;
+			}
+		}
+		if pos != -1 {
+			msg.Reactions[reaction] = append(
+				msg.Reactions[reaction][:pos], 
+				msg.Reactions[reaction][pos + 1:]...
+			);
+		}
+	}
 
 	events.Publish("messages", MessageEvent{Op: "update", Msg: msg, From: deviceId})
 
-	return err
+	return msg, err
 }
