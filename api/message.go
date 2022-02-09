@@ -145,18 +145,18 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 	if err != nil {
 		return nil, err
 	}
-	if (msg.UserID == int(userId)) {
-		return nil, errors.New("you cannot add a reaction to your message")
+	if msg.UserID == int(userId) {
+		return nil, errors.New("cannot add a reaction to own message")
 	}
 	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
 		return nil, AccessDeniedError
 	}
 
-	v := data.Reaction {
+	v := data.Reaction{
 		MessageId: msgID,
-		Reaction: reaction,
-		UserId: int(userId),
-	}	
+		Reaction:  reaction,
+		UserId:    int(userId),
+	}
 	added, err := m.db.Reactions.Add(v)
 	if err != nil || !added {
 		return nil, err
@@ -164,7 +164,7 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 
 	msg.Reactions[reaction] = append(msg.Reactions[reaction], v.UserId)
 	events.Publish("messages", MessageEvent{Op: "update", Msg: msg, From: deviceId})
-	
+
 	return msg, nil
 }
 
@@ -177,31 +177,27 @@ func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, 
 		return nil, AccessDeniedError
 	}
 
-	r := data.Reaction {
+	r := data.Reaction{
 		MessageId: msgID,
-		Reaction: reaction,
-		UserId: int(userId),
+		Reaction:  reaction,
+		UserId:    int(userId),
 	}
 	err = m.db.Reactions.Remove(r)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(msg.Reactions[reaction]) == 1 {
-		delete(msg.Reactions, reaction);
+	if len(msg.Reactions[reaction]) <= 1 {
+		delete(msg.Reactions, reaction)
 	} else {
-		pos := -1
 		for i, id := range msg.Reactions[reaction] {
 			if id == r.UserId {
-				pos = i
-				break;
+				msg.Reactions[reaction] = append(
+					msg.Reactions[reaction][:i],
+					msg.Reactions[reaction][i+1:]...,
+				)
+				break
 			}
-		}
-		if pos != -1 {
-			msg.Reactions[reaction] = append(
-				msg.Reactions[reaction][:pos], 
-				msg.Reactions[reaction][pos + 1:]...
-			);
 		}
 	}
 

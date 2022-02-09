@@ -7,16 +7,16 @@ import (
 )
 
 type ReactionsDAO struct {
-	dao *DAO
-	db *gorm.DB
+	dao    *DAO
+	db     *gorm.DB
 	config FeaturesConfig
 }
 
 type Reaction struct {
-	Id			int		`gorm:"primary_key" json:"reaction_id"`
-	MessageId	int		`json:"message_id"`
-	Reaction	string	`json:"reaction"`
-	UserId		int		`json:"user_id"`
+	Id        int    `gorm:"primary_key" json:"reaction_id"`
+	MessageId int    `json:"message_id"`
+	Reaction  string `json:"reaction"`
+	UserId    int    `json:"user_id"`
 }
 
 var getReactionsSql = "select r.id, r.message_id, r.reaction, r.user_id from messages m join reactions r on m.id = r.message_id and m.chat_id = ?"
@@ -26,32 +26,32 @@ func NewReactionDAO(dao *DAO, db *gorm.DB, config FeaturesConfig) ReactionsDAO {
 }
 
 func (d *ReactionsDAO) Add(reaction Reaction) (bool, error) {
-	if (!d.config.WithReactions) {
+	if !d.config.WithReactions {
 		return false, errors.New("current chat mode does not support reactions")
 	}
-	
+
 	if d.Exists(reaction) {
 		return false, errors.New("record already exists")
 	}
-	
+
 	res := d.db.Save(&reaction)
 	logError(res.Error)
-	
+
 	return res.RowsAffected != 0, res.Error
 }
 
 func (d *ReactionsDAO) Remove(reaction Reaction) error {
-	if (!d.config.WithReactions) {
+	if !d.config.WithReactions {
 		return errors.New("current chat mode does not support reactions")
 	}
 
 	err := d.db.Where(
-		"message_id = ? and reaction = ? and user_id = ?", 
-		reaction.MessageId, 
-		reaction.Reaction, 
+		"message_id = ? and reaction = ? and user_id = ?",
+		reaction.MessageId,
+		reaction.Reaction,
 		reaction.UserId,
 	).Delete(&reaction).Error
-	logError(err)	
+	logError(err)
 
 	return err
 }
@@ -90,9 +90,9 @@ func (d *ReactionsDAO) SetReactions(msgs []Message, all []Reaction) {
 func (d *ReactionsDAO) Exists(reaction Reaction) bool {
 	r := Reaction{}
 	err := d.db.Where(
-		"message_id = ? and reaction = ? and user_id = ?", 
-		reaction.MessageId, 
-		reaction.Reaction, 
+		"message_id = ? and reaction = ? and user_id = ?",
+		reaction.MessageId,
+		reaction.Reaction,
 		reaction.UserId,
 	).Take(&r).Error
 

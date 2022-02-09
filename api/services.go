@@ -3,10 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	remote "github.com/mkozhukh/go-remote"
 	"math"
 	"mkozhukh/chat/data"
 	"time"
+
+	remote "github.com/mkozhukh/go-remote"
 )
 
 type CallService struct {

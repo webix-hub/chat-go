@@ -29,7 +29,7 @@ func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, serve
 	url := getAvatarURL(idStr, filepath.Base(target.Name()), server)
 	// get existing chat
 	if id != 0 {
-		err = d.db.Table("chats").Where("chat_id = ?", id).Update("avatar", url).Error
+		err = d.db.Table("chats").Where("id = ?", id).Update("avatar", url).Error
 		if err != nil {
 			return "", err
 		}
