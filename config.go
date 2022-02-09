@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"mkozhukh/chat/data"
 
 	"github.com/jinzhu/configor"
 )
@@ -24,6 +25,7 @@ type AppConfig struct {
 		Database string
 		Path     string //sqlite
 	}
+	Features data.FeaturesConfig
 }
 
 //LoadFromFile method loads and parses config file

@@ -47,7 +47,7 @@ func main() {
 		conn, err = gorm.Open("sqlite3", Config.DB.Path)
 	}
 
-	db := data.NewDAO(conn)
+	db := data.NewDAO(conn, Config.Features)
 	importDemoData(conn)
 
 	if err != nil {

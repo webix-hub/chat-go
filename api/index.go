@@ -3,9 +3,10 @@ package api
 import (
 	"context"
 	"errors"
-	remote "github.com/mkozhukh/go-remote"
 	"log"
 	"net/http"
+
+	remote "github.com/mkozhukh/go-remote"
 
 	"mkozhukh/chat/data"
 )

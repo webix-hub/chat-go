@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"mkozhukh/chat/data"
 	"time"
 
@@ -9,13 +10,6 @@ import (
 
 type MessagesAPI struct {
 	db *data.DAO
-}
-
-type MessageEvent struct {
-	Op     string        `json:"op"`
-	Msg    *data.Message `json:"msg"`
-	Origin string        `json:"origin,omitempty"`
-	From   DeviceID      `json:"-"`
 }
 
 func (m *MessagesAPI) GetAll(chatId int, userId UserID) ([]data.Message, error) {
@@ -81,7 +75,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, deviceId Dev
 		return nil, err
 	}
 
-	events.Publish("messages", MessageEvent{Op: "update", Msg: msg, From: deviceId})
+	events.Publish("messages", data.MessageEvent{Op: "update", Msg: msg, From: int(deviceId)})
 	if ch.LastMessage == msg.ID {
 		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: msg.Type, Date: &msg.Date}, UserId: 0})
 	}
@@ -117,7 +111,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 
 	events.Publish(
 		"messages",
-		MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}, From: deviceId},
+		data.MessageEvent{Op: "remove", Msg: &data.Message{ID: msgID, ChatID: msg.ChatID}, From: int(deviceId)},
 	)
 
 	if ch.LastMessage == msg.ID {
@@ -126,4 +120,70 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 	}
 
 	return nil
+}
+
+func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
+	msg, err := m.db.Messages.GetOne(msgID)
+	if err != nil {
+		return nil, err
+	}
+	if msg.UserID == int(userId) {
+		return nil, errors.New("cannot add a reaction to own message")
+	}
+	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
+		return nil, AccessDeniedError
+	}
+
+	v := data.Reaction{
+		MessageId: msgID,
+		Reaction:  reaction,
+		UserId:    int(userId),
+	}
+	added, err := m.db.Reactions.Add(v)
+	if err != nil || !added {
+		return nil, err
+	}
+
+	msg.Reactions[reaction] = append(msg.Reactions[reaction], v.UserId)
+	events.Publish("messages", data.MessageEvent{Op: "update", Msg: msg, From: int(deviceId)})
+
+	return msg, nil
+}
+
+func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
+	msg, err := m.db.Messages.GetOne(msgID)
+	if err != nil {
+		return nil, err
+	}
+	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
+		return nil, AccessDeniedError
+	}
+
+	r := data.Reaction{
+		MessageId: msgID,
+		Reaction:  reaction,
+		UserId:    int(userId),
+	}
+	err = m.db.Reactions.Remove(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(msg.Reactions[reaction]) <= 1 {
+		delete(msg.Reactions, reaction)
+	} else {
+		for i, id := range msg.Reactions[reaction] {
+			if id == r.UserId {
+				msg.Reactions[reaction] = append(
+					msg.Reactions[reaction][:i],
+					msg.Reactions[reaction][i+1:]...,
+				)
+				break
+			}
+		}
+	}
+
+	events.Publish("messages", data.MessageEvent{Op: "update", Msg: msg, From: int(deviceId)})
+
+	return msg, err
 }

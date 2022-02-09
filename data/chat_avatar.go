@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -33,14 +32,7 @@ func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, serve
 	url := getAvatarURL(idStr, filepath.Base(target.Name()), server)
 	// get existing chat
 	if id != 0 {
-		ch := Chat{}
-		d.db.Find(&ch, id)
-		if ch.ID == 0 {
-			return "", errors.New("incorrect chat id")
-		}
-
-		ch.Avatar = url
-		err = d.db.Save(&ch).Error
+		err = d.db.Table("chats").Where("id = ?", id).Update("avatar", url).Error
 		if err != nil {
 			return "", err
 		}

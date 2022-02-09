@@ -38,14 +38,14 @@ func (d *ChatsAPI) AddDirect(targetUserId int, userId UserID, events *remote.Hub
 }
 
 func (d *ChatsAPI) AddGroup(name, avatar string, users []int, userId UserID, events *remote.Hub) (*data.UserChatDetails, error) {
+	// sanitize input
+	name = safeHTML(name)
+	avatar = safeUrl(avatar)
+
 	chatId, err := d.db.Chats.AddGroup(name, avatar, append(users, int(userId)))
 	if err != nil {
 		return nil, err
 	}
-
-	// sanitize input
-	name = safeHTML(name)
-	avatar = safeUrl(avatar)
 
 	info, err := d.db.UserChats.GetOne(chatId, int(userId))
 	if err != nil {

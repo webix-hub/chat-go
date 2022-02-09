@@ -3,10 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	remote "github.com/mkozhukh/go-remote"
 	"math"
 	"mkozhukh/chat/data"
 	"time"
+
+	remote "github.com/mkozhukh/go-remote"
 )
 
 type CallService struct {
@@ -154,7 +155,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 }
 
 func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) error {
-	d.hub.Publish("messages", MessageEvent{Op: "add", Msg: msg})
+	d.hub.Publish("messages", data.MessageEvent{Op: "add", Msg: msg})
 
 	err = d.uchDAO.IncrementCounter(c.ChatID, int(c.FromUserID))
 	if err != nil {
