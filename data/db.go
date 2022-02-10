@@ -49,7 +49,7 @@ func NewDAO(db *gorm.DB, config FeaturesConfig) *DAO {
 	d.UserChats = NewUserChatsDAO(&d, db)
 	d.Calls = NewCallsDAO(&d, db)
 	d.Files = NewFilesDAO(&d, db)
-	d.Reactions = NewReactionDAO(&d, db, config)
+	d.Reactions = NewReactionDAO(&d, db)
 
 	d.UsersCache = NewUsersCache(&d)
 

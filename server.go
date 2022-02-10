@@ -62,7 +62,7 @@ func main() {
 		log.Fatal("Can't create data folder", err)
 	}
 
-	rapi := api.BuildAPI(db)
+	rapi := api.BuildAPI(db, Config.Features)
 	db.SetHub(rapi.Events)
 
 	// Router
@@ -115,6 +115,10 @@ func main() {
 	})
 
 	r.Post("/api/v1/chat/{chatId}/file", func(w http.ResponseWriter, r *http.Request) {
+		if !Config.Features.WithFiles {
+			panic(data.ErrFeatureDisabled)
+		}
+
 		uid := getUserId(r)
 		cid := chiIntParam(r, "chatId")
 		if !db.UsersCache.HasChat(uid, cid) {
@@ -141,6 +145,10 @@ func main() {
 		}
 	})
 	r.Get("/api/v1/files/{fileId}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		if !Config.Features.WithFiles {
+			panic(data.ErrFeatureDisabled)
+		}
+
 		fid := chi.URLParam(r, "fileId")
 		fInfo := db.Files.GetOne(fid)
 
@@ -153,6 +161,10 @@ func main() {
 	})
 
 	r.Get("/api/v1/files/{fileId}/preview/{name}", func(w http.ResponseWriter, r *http.Request) {
+		if !Config.Features.WithFiles {
+			panic(data.ErrFeatureDisabled)
+		}
+
 		fid := chi.URLParam(r, "fileId")
 		fInfo := db.Files.GetOne(fid)
 

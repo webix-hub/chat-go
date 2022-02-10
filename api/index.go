@@ -24,7 +24,7 @@ type UserEvent struct {
 	Data   interface{} `json:"data"`
 }
 
-func BuildAPI(db *data.DAO) *remote.Server {
+func BuildAPI(db *data.DAO, config data.FeaturesConfig) *remote.Server {
 	if remote.MaxSocketMessageSize < 32000 {
 		remote.MaxSocketMessageSize = 32000
 	}
@@ -118,7 +118,7 @@ func BuildAPI(db *data.DAO) *remote.Server {
 			remote.ConnectionValue, device), nil
 	}
 
-	must(api.AddService("message", &MessagesAPI{db}))
+	must(api.AddService("message", &MessagesAPI{db, config}))
 	must(api.AddService("chat", &ChatsAPI{db}))
 	must(api.AddService("call", &CallsAPI{db, service}))
 

@@ -7,9 +7,8 @@ import (
 )
 
 type ReactionsDAO struct {
-	dao    *DAO
-	db     *gorm.DB
-	config FeaturesConfig
+	dao *DAO
+	db  *gorm.DB
 }
 
 type Reaction struct {
@@ -21,15 +20,11 @@ type Reaction struct {
 
 var getReactionsSql = "select r.id, r.message_id, r.reaction, r.user_id from messages m join reactions r on m.id = r.message_id and m.chat_id = ?"
 
-func NewReactionDAO(dao *DAO, db *gorm.DB, config FeaturesConfig) ReactionsDAO {
-	return ReactionsDAO{dao, db, config}
+func NewReactionDAO(dao *DAO, db *gorm.DB) ReactionsDAO {
+	return ReactionsDAO{dao, db}
 }
 
 func (d *ReactionsDAO) Add(reaction Reaction) (bool, error) {
-	if !d.config.WithReactions {
-		return false, errors.New("current chat mode does not support reactions")
-	}
-
 	if d.Exists(reaction) {
 		return false, errors.New("record already exists")
 	}
@@ -41,10 +36,6 @@ func (d *ReactionsDAO) Add(reaction Reaction) (bool, error) {
 }
 
 func (d *ReactionsDAO) Remove(reaction Reaction) error {
-	if !d.config.WithReactions {
-		return errors.New("current chat mode does not support reactions")
-	}
-
 	err := d.db.Where(
 		"message_id = ? and reaction = ? and user_id = ?",
 		reaction.MessageId,

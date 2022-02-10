@@ -9,7 +9,8 @@ import (
 )
 
 type MessagesAPI struct {
-	db *data.DAO
+	db     *data.DAO
+	config data.FeaturesConfig
 }
 
 func (m *MessagesAPI) GetAll(chatId int, userId UserID) ([]data.Message, error) {
@@ -123,6 +124,10 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 }
 
 func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
+	if !m.config.WithReactions {
+		return nil, data.ErrFeatureDisabled
+	}
+
 	msg, err := m.db.Messages.GetOne(msgID)
 	if err != nil {
 		return nil, err
@@ -151,6 +156,10 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 }
 
 func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
+	if !m.config.WithReactions {
+		return nil, data.ErrFeatureDisabled
+	}
+
 	msg, err := m.db.Messages.GetOne(msgID)
 	if err != nil {
 		return nil, err
