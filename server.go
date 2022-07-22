@@ -178,8 +178,7 @@ func main() {
 
 	r.Post("/api/v1/chat/{chatId}/avatar", func(w http.ResponseWriter, r *http.Request) {
 		uid := getUserId(r)
-		cid := chiIntParam(r, "chatId")
-		if !db.UsersCache.HasChat(uid, cid) {
+		if uid == 0 {
 			http.Error(w, "access denied", http.StatusForbidden)
 			return
 		}
@@ -189,13 +188,14 @@ func main() {
 		r.ParseMultipartForm(limit)
 
 		file, _, err := r.FormFile("upload")
-
-		defer file.Close()
 		if err != nil {
 			log.Println(err.Error())
+			http.Error(w, "can't handle file upload", http.StatusInternalServerError)
+			return
 		}
+		defer file.Close()
 
-		chat, _ := db.Chats.UpdateAvatar(chi.URLParam(r, "chatId"), file, aDir, Config.Server.Public)
+		chat, _ := db.Chats.UploadAvatar(file, aDir, Config.Server.Public)
 		format.JSON(w, 200, UploadResponse{Status: "server", Value: chat})
 	})
 

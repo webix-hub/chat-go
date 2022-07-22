@@ -8,17 +8,11 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
-	"strconv"
 
 	"github.com/disintegration/imaging"
 )
 
-func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, server string) (string, error) {
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		return "", err
-	}
-
+func (d *ChatsDAO) UploadAvatar(file io.Reader, path string, server string) (string, error) {
 	target, err := ioutil.TempFile(path, "*.jpg")
 	if err != nil {
 		return "", err
@@ -29,20 +23,12 @@ func (d *ChatsDAO) UpdateAvatar(idStr string, file io.Reader, path string, serve
 		return "", err
 	}
 
-	url := getAvatarURL(idStr, filepath.Base(target.Name()), server)
-	// get existing chat
-	if id != 0 {
-		err = d.db.Table("chats").Where("id = ?", id).Update("avatar", url).Error
-		if err != nil {
-			return "", err
-		}
-	}
-
+	url := getAvatarURL(filepath.Base(target.Name()), server)
 	return url, nil
 }
 
-func getAvatarURL(id, name, server string) string {
-	return server + path.Join("/api/v1/chat", id, "avatar", name)
+func getAvatarURL(name, server string) string {
+	return server + path.Join("/api/v1/chat", "0", "avatar", name)
 }
 
 func getImagePreview(source io.Reader, width, height int, target io.Writer) error {
