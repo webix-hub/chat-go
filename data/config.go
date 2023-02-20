@@ -3,8 +3,9 @@ package data
 import "errors"
 
 type FeaturesConfig struct {
-	WithReactions bool
-	WithFiles     bool
+	WithReactions  bool
+	WithFiles      bool
+	WithGroupCalls bool
 }
 
 var ErrFeatureDisabled = errors.New("feature disabled")

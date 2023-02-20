@@ -24,7 +24,7 @@ type UserEvent struct {
 	Data   interface{} `json:"data"`
 }
 
-func BuildAPI(db *data.DAO, config data.FeaturesConfig) *remote.Server {
+func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig LivekitConfig) *remote.Server {
 	if remote.MaxSocketMessageSize < 32000 {
 		remote.MaxSocketMessageSize = 32000
 	}
@@ -33,14 +33,20 @@ func BuildAPI(db *data.DAO, config data.FeaturesConfig) *remote.Server {
 		WebSocket: true,
 	})
 
-	service := newCallService(db.Calls, db.Messages, db.Chats, db.UserChats, api.Events)
+	service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events)
+
+	var livekit *LivekitService
+	if featuresConfig.WithGroupCalls {
+		LIVEKIT_ENABLED = true
+		livekit = newLivekitService(livekitConfig)
+		service.livekit = livekit
+	}
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(data.MessageEvent)
 		if !ok {
 			return false
 		}
-
 		// operations in user chats, initiated by others
 		return int(tm.From) != c.ConnID && db.UsersCache.HasChat(c.User, tm.Msg.ChatID)
 	})
@@ -118,9 +124,9 @@ func BuildAPI(db *data.DAO, config data.FeaturesConfig) *remote.Server {
 			remote.ConnectionValue, device), nil
 	}
 
-	must(api.AddService("message", &MessagesAPI{db, config}))
+	must(api.AddService("message", &MessagesAPI{db, featuresConfig}))
 	must(api.AddService("chat", &ChatsAPI{db}))
-	must(api.AddService("call", &CallsAPI{db, service}))
+	must(api.AddService("call", &CallsAPI{db, service, livekit}))
 
 	// provide user's id
 	must(api.AddVariable("user", UserID(0)))
@@ -160,11 +166,22 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 		id, _ := ctx.Value("user_id").(int)
 		device, _ := ctx.Value("device_id").(int)
 		call, _ := db.Calls.GetByUser(id, device)
+
+		if call.IsGroupCall {
+			for _, cu := range call.Users {
+				if cu.UserID == id && cu.DeviceID != 0 && !cu.Connected {
+					return Call{}
+				}
+			}
+		}
+
 		return Call{
-			ID:     call.ID,
-			Status: call.Status,
-			Users:  []int{call.FromUserID, call.ToUserID},
-			Start:  call.Start,
+			ID:          call.ID,
+			Status:      call.Status,
+			Start:       call.Start,
+			InitiatorID: call.InitiatorID,
+			IsGroupCall: call.IsGroupCall,
+			Users:       call.GetUsersIDs(),
 		}
 	}))
 }
