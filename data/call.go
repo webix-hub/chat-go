@@ -11,7 +11,6 @@ const (
 	CallStatusInitiated    = 1
 	CallStatusAccepted     = 2
 	CallStatusActive       = 3
-	CallStatusReconnect    = 4
 	CallStatusDisconnected = 801
 	CallStatusRejected     = 901
 	CallStatusEnded        = 902

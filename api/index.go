@@ -167,6 +167,7 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 		device, _ := ctx.Value("device_id").(int)
 		call, _ := db.Calls.GetByUser(id, device)
 
+		var callName, callAvatar string
 		if call.IsGroupCall {
 			// if user disconnected from the call, then do not show it to him again
 			// but he can reconnect to this call manually (by clicking "Start call" button on the client side)
@@ -175,10 +176,16 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 					return Call{}
 				}
 			}
+
+			chat, _ := db.Chats.GetOne(call.ChatID)
+			callName = chat.Name
+			callAvatar = chat.Avatar
 		}
 
 		return Call{
 			ID:          call.ID,
+			Name:        callName,
+			Avatar:      callAvatar,
 			Status:      call.Status,
 			Start:       call.Start,
 			InitiatorID: call.InitiatorID,

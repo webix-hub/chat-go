@@ -20,6 +20,8 @@ type Call struct {
 	ChatID      int        `json:"chat"`
 	Start       *time.Time `json:"start"`
 	IsGroupCall bool       `json:"group"`
+	Name        string     `json:"name"`
+	Avatar      string     `json:"avatar"`
 	Users       []int      `json:"users"`
 }
 

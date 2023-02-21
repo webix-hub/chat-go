@@ -106,6 +106,7 @@ func (d *CallService) sendEvent(c *data.Call, to ...data.CallUser) {
 		Start:       c.Start,
 		InitiatorID: c.InitiatorID,
 		IsGroupCall: c.IsGroupCall,
+		ChatID:      c.ChatID,
 		Users:       c.GetUsersIDs(),
 	})
 
