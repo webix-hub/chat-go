@@ -17,9 +17,10 @@ type Call struct {
 	ID          int        `json:"id"`
 	Status      int        `json:"status"`
 	InitiatorID int        `json:"initiator"`
-	Users       []int      `json:"users"`
-	IsGroupCall bool       `json:"group"`
+	ChatID      int        `json:"chat"`
 	Start       *time.Time `json:"start"`
+	IsGroupCall bool       `json:"group"`
+	Users       []int      `json:"users"`
 }
 
 type CallDevices struct {
@@ -45,7 +46,18 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 		return nil, data.ErrFeatureDisabled
 	}
 
-	call, err := d.db.Calls.Start(int(userId), int(device), targetUserId, chatId)
+	// check if chat is not in call
+	call, err := d.db.Calls.CheckIfChatInCall(chatId)
+	if err != nil {
+		return nil, err
+	}
+	if call.ID != 0 {
+		// join user to existing call
+		_, err := d.SetStatus(call.ID, data.CallStatusAccepted, userId, device, nil)
+		return nil, err
+	}
+
+	call, err = d.db.Calls.Start(int(userId), int(device), targetUserId, chatId)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +106,6 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceId DeviceID, h
 	}
 
 	var toUsers []data.CallUser
-
 	if call.IsGroupCall {
 		toUsers = []data.CallUser{
 			{UserID: int(userId), DeviceID: int(deviceId)},
@@ -102,13 +113,10 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceId DeviceID, h
 
 		if call.Status == data.CallStatusInitiated {
 			// when the first user (excepts initiator) connects to the call,
-			// should notify initiator that call has been started
+			// should notify initiator that call has been accepted
 			for _, cu := range call.Users {
 				if cu.UserID == call.InitiatorID {
-					toUsers = append(toUsers, data.CallUser{
-						UserID:   cu.UserID,
-						DeviceID: cu.DeviceID,
-					})
+					toUsers = append(toUsers, data.CallUser{UserID: cu.UserID, DeviceID: cu.DeviceID})
 					break
 				}
 			}
@@ -162,6 +170,10 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 }
 
 func (d *CallsAPI) Disconnect(callId int, userId UserID, device DeviceID) error {
+	if !LIVEKIT_ENABLED {
+		return data.ErrFeatureDisabled
+	}
+
 	call, err := d.db.Calls.Get(callId)
 	if err != nil {
 		return err
@@ -203,14 +215,19 @@ func (d *CallsAPI) Disconnect(callId int, userId UserID, device DeviceID) error 
 		return err
 	}
 
+	toUsers := []data.CallUser{{UserID: int(userId), DeviceID: int(device)}}
 	if isLastParticipant {
 		// as the last participant has been disconnected, then end the call
-		return d.service.callStatusUpdate(&call, data.CallStatusEnded)
+		toUsers = call.Users
+		err := d.service.callStatusUpdate(&call, data.CallStatusEnded)
+		if err != nil {
+			return err
+		}
 	}
 
 	call.Status = data.CallStatusDisconnected
-	// notify the the current client to end the call
-	d.service.sendEvent(&call, data.CallUser{UserID: int(userId), DeviceID: int(device)})
+	// notify the current client to end the call
+	d.service.sendEvent(&call, toUsers...)
 
 	return nil
 }
@@ -259,12 +276,16 @@ func (d *CallsAPI) checkCallAccess(chatId, userId int) error {
 func (d *CallsAPI) updateAcceptedCall(call *data.Call, userId, deviceId int) (bool, error) {
 	for i, cu := range call.Users {
 		if cu.UserID == userId {
-			if cu.DeviceID != 0 {
-				// if user is already in call, update connection state
+			call.Users[i].Connected = true
+			if cu.DeviceID != 0 && deviceId == cu.DeviceID {
+				// if user is already in call and attemps to reconnect from the same device,
+				// then update connection state
 				err := d.db.CallUsers.UpdateUserConnState(call.ID, userId, true)
 				return false, err
 			} else {
-				// user accepts the call for the first time, then should add info about him
+				// if user accepts the call for the first time
+				// or user accepts the call from another device,
+				// then should update info about him
 				call.Users[i].DeviceID = deviceId
 				err := d.db.CallUsers.UpdateUserDeviceID(call.ID, userId, deviceId)
 				return true, err

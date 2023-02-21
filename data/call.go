@@ -11,6 +11,7 @@ const (
 	CallStatusInitiated    = 1
 	CallStatusAccepted     = 2
 	CallStatusActive       = 3
+	CallStatusReconnect    = 4
 	CallStatusDisconnected = 801
 	CallStatusRejected     = 901
 	CallStatusEnded        = 902
@@ -107,11 +108,6 @@ func (d *CallsDAO) GetByUser(id, device int) (Call, error) {
 		}
 	}
 
-	// err := d.db.Where("((`from`=? and (`from_device` = ? or `from_device` = 0)) or (`to`=? and (`to_device` = ? or `to_device` = 0))) and status < 900", id, device, id, device).Find(&c).Error
-	// if err != nil {
-	// 	return Call{}, err
-	// }
-
 	// add info about users who are participating in call
 	callUsers, err := d.dao.CallUsers.GetCallUsers(c.ID)
 	if err == nil {
@@ -122,7 +118,10 @@ func (d *CallsDAO) GetByUser(id, device int) (Call, error) {
 }
 
 func (d *CallsDAO) Update(call *Call, status int) error {
-	if status == CallStatusAccepted && call.Status == CallStatusInitiated {
+	if status == CallStatusAccepted {
+		if call.IsGroupCall && call.Status != CallStatusInitiated {
+			return nil
+		}
 		status = CallStatusActive
 		currentTime := time.Now()
 		call.Start = &currentTime
@@ -137,7 +136,6 @@ func (d *CallsDAO) Save(call *Call) error {
 }
 
 func (d *CallsDAO) GetByDevice(id int) (Call, error) {
-	// err := d.db.Where("(`from_device`=? or `to_device` = ?) and status < 900", id, id).Find(&c).Error
 	sql := "SELECT `calls`.* FROM `calls` " +
 		"JOIN `call_user` ON `calls`.`id` = `call_user`.`call_id` AND `call_user`.`connected` = 1 AND `call_user`.`device_id` = ? " +
 		"WHERE `calls`.`status` < 900"
@@ -159,6 +157,26 @@ func (d *CallsDAO) GetByDevice(id int) (Call, error) {
 	}
 
 	return c, err
+}
+
+func (d *CallsDAO) CheckIfChatInCall(chatId int) (Call, error) {
+	call := Call{}
+	err := d.db.
+		Where("chat_id = ? AND (status = ? OR status = ?)", chatId, CallStatusActive, CallStatusInitiated).
+		Find(&call).Error
+	if err != nil {
+		if errors.Is(gorm.ErrRecordNotFound, err) {
+			err = nil
+		}
+	}
+
+	// add info about users who are participating in call
+	callUsers, err := d.dao.CallUsers.GetCallUsers(call.ID)
+	if err == nil {
+		call.Users = callUsers
+	}
+
+	return call, err
 }
 
 func (d *CallsDAO) checkIfUserInCall(uid int) (bool, error) {
