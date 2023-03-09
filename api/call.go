@@ -152,20 +152,18 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 		return fmt.Errorf("%s", "Access denied")
 	}
 
-	usersTo := make([]int, len(call.Users)-1)
-	devicesTo := make([]int, len(call.Users)-1)
-	for i, u := range call.Users {
-		if u.DeviceID != int(device) {
-			usersTo[i] = u.UserID
-			devicesTo[i] = u.DeviceID
-		}
+	i := 0
+	if call.Users[0].DeviceID == int(device) {
+		i = 1
 	}
-
+	to := call.Users[i].UserID
+	toDevice := call.Users[i].DeviceID
+	fmt.Println(msg)
 	events.Publish("signal", Signal{
 		Type:    signalType,
 		Message: msg,
-		Users:   usersTo,
-		Devices: devicesTo,
+		Users:   []int{to},
+		Devices: []int{toDevice},
 	})
 
 	return nil
