@@ -11,8 +11,6 @@ import (
 
 var LIVEKIT_ENABLED = false
 
-var nRoom = time.Now().Unix()
-
 type Call struct {
 	ID          int        `json:"id"`
 	Status      int        `json:"status"`
@@ -234,7 +232,7 @@ func (d *CallsAPI) updateAcceptedCall(call *data.Call, userId, deviceId int) (bo
 		}
 	}
 
-	return false, fmt.Errorf("access denied")
+	return false, AccessDeniedError
 }
 
 func (d *CallsAPI) disconnect(call *data.Call, userId int, device int) (int, error) {
@@ -294,10 +292,4 @@ func (d *CallsAPI) disconnect(call *data.Call, userId int, device int) (int, err
 	d.service.sendEvent(call, toUsers...)
 
 	return call.Status, err
-}
-
-func newRoomName() string {
-	// TODO use UID (nonouid)
-	nRoom++
-	return fmt.Sprintf("room-%d", nRoom)
 }

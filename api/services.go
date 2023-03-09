@@ -7,6 +7,7 @@ import (
 	"mkozhukh/chat/data"
 	"time"
 
+	gonanoid "github.com/matoous/go-nanoid"
 	remote "github.com/mkozhukh/go-remote"
 )
 
@@ -208,7 +209,7 @@ func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) er
 }
 
 func (d *CallService) createRoom(c *data.Call) error {
-	c.RoomName = newRoomName()
+	c.RoomName, _ = gonanoid.ID(16)
 	err := d.cDAO.Save(c)
 	if err != nil {
 		return err
