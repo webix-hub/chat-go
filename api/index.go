@@ -33,14 +33,12 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 		WebSocket: true,
 	})
 
-	service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events)
-
 	var livekit *LivekitService
 	if featuresConfig.WithGroupCalls {
 		LIVEKIT_ENABLED = true
 		livekit = newLivekitService(livekitConfig)
-		service.livekit = livekit
 	}
+	service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events, livekit)
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(data.MessageEvent)

@@ -31,6 +31,7 @@ func newCallService(
 	chdao data.ChatsDAO,
 	uchdao data.UserChatsDAO,
 	hub *remote.Hub,
+	livekit *LivekitService,
 ) *CallService {
 	d := CallService{
 		cDAO:           cdao,
@@ -39,6 +40,7 @@ func newCallService(
 		chDAO:          chdao,
 		uchDAO:         uchdao,
 		hub:            hub,
+		livekit:        livekit,
 		offlineDevices: make(map[int]time.Time),
 	}
 	go d.runCheckOfflineUsers()
@@ -46,8 +48,8 @@ func newCallService(
 	return &d
 }
 
-func (d *CallService) StartCall(call *data.Call) {
-	time.AfterFunc(30*time.Second, func() { d.dropNotAccepted(call.ID) })
+func (d *CallService) StartCall(id int) {
+	time.AfterFunc(30*time.Second, func() { d.dropNotAccepted(id) })
 }
 
 func (d *CallService) dropNotAccepted(id int) {

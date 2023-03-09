@@ -70,7 +70,7 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 			}
 		}
 		d.service.sendEvent(&call)
-		d.service.StartCall(&call)
+		d.service.StartCall(call.ID)
 	} else {
 		d.service.RejectCall(&call)
 	}
