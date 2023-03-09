@@ -46,7 +46,7 @@ func newCallService(
 }
 
 func (d *CallService) StartCall(call *data.Call) {
-	time.AfterFunc(15*time.Second, func() { d.dropNotAccepted(call.ID) })
+	time.AfterFunc(30*time.Second, func() { d.dropNotAccepted(call.ID) })
 }
 
 func (d *CallService) dropNotAccepted(id int) {
