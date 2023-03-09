@@ -93,6 +93,10 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceId DeviceID, h
 		return 0, err
 	}
 
+	if call.IsGroupCall && data.IsNegativeStatus(status) {
+		return d.disconnect(&call, int(userId), int(deviceId))
+	}
+
 	// check if user has access to this call
 	err = d.checkCallAccess(call.ChatID, int(userId))
 	if err != nil {
@@ -169,69 +173,6 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 	return nil
 }
 
-func (d *CallsAPI) Disconnect(callId int, userId UserID, device DeviceID) error {
-	if !LIVEKIT_ENABLED {
-		return data.ErrFeatureDisabled
-	}
-
-	call, err := d.db.Calls.Get(callId)
-	if err != nil {
-		return err
-	}
-	if call.Status > 900 {
-		return fmt.Errorf("call already ended")
-	}
-
-	if call.InitiatorID == int(userId) && call.Status == data.CallStatusInitiated {
-		// the call has not started yet
-		err := d.service.callStatusUpdate(&call, data.CallStatusRejected)
-		d.service.sendEvent(&call)
-		return err
-	}
-
-	isLastParticipant := true
-	for i := range call.Users {
-		cu := &call.Users[i]
-
-		if cu.UserID == int(userId) {
-			// update connection state
-			cu.Connected = false
-			if cu.DeviceID == 0 {
-				// update deviceId if it was not defined
-				err = d.db.CallUsers.UpdateUserDeviceID(call.ID, int(userId), int(device))
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		if isLastParticipant && cu.Connected {
-			isLastParticipant = false
-		}
-	}
-
-	err = d.db.CallUsers.UpdateUserConnState(call.ID, int(userId), false)
-	if err != nil {
-		return err
-	}
-
-	toUsers := []data.CallUser{{UserID: int(userId), DeviceID: int(device)}}
-	if isLastParticipant {
-		// as the last participant has been disconnected, then end the call
-		toUsers = call.Users
-		err := d.service.callStatusUpdate(&call, data.CallStatusEnded)
-		if err != nil {
-			return err
-		}
-	}
-
-	call.Status = data.CallStatusDisconnected
-	// notify the current client to end the call
-	d.service.sendEvent(&call, toUsers...)
-
-	return nil
-}
-
 func (d *CallsAPI) JoinToken(callId int, userId UserID, device DeviceID) (string, error) {
 	if !LIVEKIT_ENABLED {
 		return "", data.ErrFeatureDisabled
@@ -294,6 +235,65 @@ func (d *CallsAPI) updateAcceptedCall(call *data.Call, userId, deviceId int) (bo
 	}
 
 	return false, fmt.Errorf("access denied")
+}
+
+func (d *CallsAPI) disconnect(call *data.Call, userId int, device int) (int, error) {
+	if !LIVEKIT_ENABLED {
+		return 0, data.ErrFeatureDisabled
+	}
+	if call.Status > 900 {
+		return 0, fmt.Errorf("call already ended")
+	}
+	var err error
+
+	if call.InitiatorID == userId && call.Status == data.CallStatusInitiated {
+		// the call has not started yet
+		err := d.service.callStatusUpdate(call, data.CallStatusRejected)
+		d.service.sendEvent(call)
+		return 0, err
+	}
+
+	isLastParticipant := true
+	for i := range call.Users {
+		cu := &call.Users[i]
+
+		if cu.UserID == userId {
+			// update connection state
+			cu.Connected = false
+			if cu.DeviceID == 0 {
+				// update deviceId if it was not defined
+				err = d.db.CallUsers.UpdateUserDeviceID(call.ID, userId, device)
+				if err != nil {
+					return 0, err
+				}
+			}
+		}
+
+		if isLastParticipant && cu.Connected {
+			isLastParticipant = false
+		}
+	}
+
+	err = d.db.CallUsers.UpdateUserConnState(call.ID, userId, false)
+	if err != nil {
+		return 0, err
+	}
+
+	toUsers := []data.CallUser{{UserID: userId, DeviceID: device}}
+	if isLastParticipant {
+		// as the last participant has been disconnected, then end the call
+		toUsers = call.Users
+		err := d.service.callStatusUpdate(call, data.CallStatusEnded)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	call.Status = data.CallStatusDisconnected
+	// notify the current client to end the call
+	d.service.sendEvent(call, toUsers...)
+
+	return call.Status, err
 }
 
 func newRoomName() string {
