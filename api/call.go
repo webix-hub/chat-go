@@ -9,8 +9,6 @@ import (
 	remote "github.com/mkozhukh/go-remote"
 )
 
-var LIVEKIT_ENABLED = false
-
 type Call struct {
 	ID          int        `json:"id"`
 	Status      int        `json:"status"`
@@ -30,7 +28,6 @@ type CallDevices struct {
 type CallsAPI struct {
 	db      *data.DAO
 	service *CallService
-	livekit *LivekitService
 }
 
 type Signal struct {
@@ -42,7 +39,7 @@ type Signal struct {
 
 func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device DeviceID) (*Call, error) {
 	isGroupChat := targetUserId == 0
-	if isGroupChat && !LIVEKIT_ENABLED {
+	if isGroupChat && !d.service.withLivekit {
 		return nil, data.ErrFeatureDisabled
 	}
 
@@ -63,7 +60,7 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 	}
 
 	if call.Status != data.CallStatusRejected {
-		if LIVEKIT_ENABLED {
+		if d.service.withLivekit {
 			err = d.service.createRoom(&call)
 			if err != nil {
 				return nil, err
@@ -91,7 +88,7 @@ func (d *CallsAPI) SetStatus(id, status int, userId UserID, deviceId DeviceID, h
 		return 0, err
 	}
 
-	if call.IsGroupCall && data.IsNegativeStatus(status) {
+	if call.IsGroupCall && status > 900 {
 		return d.disconnect(&call, int(userId), int(deviceId))
 	}
 
@@ -172,7 +169,7 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 }
 
 func (d *CallsAPI) JoinToken(callId int, userId UserID, device DeviceID) (string, error) {
-	if !LIVEKIT_ENABLED {
+	if !d.service.withLivekit {
 		return "", data.ErrFeatureDisabled
 	}
 
@@ -186,7 +183,7 @@ func (d *CallsAPI) JoinToken(callId int, userId UserID, device DeviceID) (string
 		return "", err
 	}
 
-	token, err := d.livekit.GetJoinToken(call.RoomName, strconv.Itoa(int(userId)))
+	token, err := d.service.livekit.GetJoinToken(call.RoomName, strconv.Itoa(int(userId)))
 
 	return token, err
 }
@@ -236,7 +233,7 @@ func (d *CallsAPI) updateAcceptedCall(call *data.Call, userId, deviceId int) (bo
 }
 
 func (d *CallsAPI) disconnect(call *data.Call, userId int, device int) (int, error) {
-	if !LIVEKIT_ENABLED {
+	if !d.service.withLivekit {
 		return 0, data.ErrFeatureDisabled
 	}
 	if call.Status > 900 {

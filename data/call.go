@@ -238,7 +238,3 @@ func (c *Call) GetDevicesIDs() []int {
 	}
 	return devices
 }
-
-func IsNegativeStatus(status int) bool {
-	return status == CallStatusEnded || status == CallStatusRejected || status == CallStatusLost || status == CallStatusIgnored
-}

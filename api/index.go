@@ -35,7 +35,6 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 
 	var livekit *LivekitService
 	if featuresConfig.WithGroupCalls {
-		LIVEKIT_ENABLED = true
 		livekit = newLivekitService(livekitConfig)
 	}
 	service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events, livekit)
@@ -124,7 +123,7 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 
 	must(api.AddService("message", &MessagesAPI{db, featuresConfig}))
 	must(api.AddService("chat", &ChatsAPI{db}))
-	must(api.AddService("call", &CallsAPI{db, service, livekit}))
+	must(api.AddService("call", &CallsAPI{db, service}))
 
 	// provide user's id
 	must(api.AddVariable("user", UserID(0)))

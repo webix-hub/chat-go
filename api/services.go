@@ -19,7 +19,8 @@ type CallService struct {
 	uchDAO data.UserChatsDAO
 	hub    *remote.Hub
 
-	livekit *LivekitService
+	withLivekit bool
+	livekit     *LivekitService
 
 	offlineDevices map[int]time.Time
 }
@@ -41,6 +42,7 @@ func newCallService(
 		uchDAO:         uchdao,
 		hub:            hub,
 		livekit:        livekit,
+		withLivekit:    livekit != nil,
 		offlineDevices: make(map[int]time.Time),
 	}
 	go d.runCheckOfflineUsers()
@@ -145,10 +147,10 @@ func (d *CallService) broadcastToUserDevices(targetUser int, payload interface{}
 
 func (d *CallService) callStatusUpdate(c *data.Call, status int) (err error) {
 	defer func() {
-		if err != nil || status > 900 {
+		if status > 900 {
 			e := d.endCall(c)
-			if e != nil {
-				fmt.Printf("LIVEKIT ERROR: %s\n", e.Error())
+			if err == nil {
+				err = e
 			}
 		}
 	}()
@@ -247,11 +249,9 @@ func (d *CallService) RejectCall(c *data.Call) error {
 }
 
 func (d *CallService) endCall(c *data.Call) error {
-	if LIVEKIT_ENABLED {
+	if d.withLivekit {
 		// should delete room as the call has been ended
-		go d.livekit.DeleteRoom(c.RoomName)
+		d.livekit.DeleteRoom(c.RoomName)
 	}
-
-	err := d.cuDAO.EndCall(c.ID)
-	return err
+	return d.cuDAO.EndCall(c.ID)
 }
