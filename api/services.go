@@ -251,7 +251,7 @@ func (d *CallService) RejectCall(c *data.Call) error {
 func (d *CallService) endCall(c *data.Call) error {
 	if d.withLivekit {
 		// should delete room as the call has been ended
-		d.livekit.DeleteRoom(c.RoomName)
+		go d.livekit.DeleteRoom(c.RoomName)
 	}
 	return d.cuDAO.EndCall(c.ID)
 }
