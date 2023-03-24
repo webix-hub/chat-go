@@ -150,6 +150,9 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 	if err != nil {
 		return fmt.Errorf("%s", "Access denied")
 	}
+	if call.ID == 0 {
+		return fmt.Errorf("call not defined")
+	}
 
 	i := 0
 	if call.Users[0].DeviceID == int(device) {
@@ -157,7 +160,7 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 	}
 	to := call.Users[i].UserID
 	toDevice := call.Users[i].DeviceID
-	fmt.Println(msg)
+
 	events.Publish("signal", Signal{
 		Type:    signalType,
 		Message: msg,
@@ -170,7 +173,7 @@ func (d *CallsAPI) Signal(signalType, msg string, device DeviceID, events *remot
 
 func (d *CallsAPI) JoinToken(callId int, userId UserID, device DeviceID) (string, error) {
 	if !d.service.withLivekit {
-		return "", data.ErrFeatureDisabled
+		return "", fmt.Errorf("livekit server not initialized")
 	}
 
 	call, err := d.service.cDAO.Get(callId)
