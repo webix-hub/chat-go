@@ -43,13 +43,13 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 		return nil, data.ErrFeatureDisabled
 	}
 
-	// check if chat is not in call
+	// check if the chat is in active call
 	call, err := d.db.Calls.CheckIfChatInCall(chatId)
 	if err != nil {
 		return nil, err
 	}
 	if call.ID != 0 {
-		// join user to existing call
+		// join the user to the existing call
 		_, err := d.SetStatus(call.ID, data.CallStatusAccepted, userId, device, nil)
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 		return nil, err
 	}
 
-	if call.Status != data.CallStatusRejected {
+	if call.Status != data.CallStatusBusy {
 		if d.service.withLivekit {
 			err = d.service.createRoom(&call)
 			if err != nil {
@@ -69,7 +69,7 @@ func (d *CallsAPI) Start(targetUserId int, chatId int, userId UserID, device Dev
 		d.service.sendEvent(&call)
 		d.service.StartCall(call.ID)
 	} else {
-		d.service.RejectCall(&call)
+		d.service.RejectCallWithMessage(&call, data.CallBusyMessage)
 	}
 
 	return &Call{

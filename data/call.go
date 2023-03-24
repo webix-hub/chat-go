@@ -16,6 +16,7 @@ const (
 	CallStatusEnded        = 902
 	CallStatusIgnored      = 903
 	CallStatusLost         = 904
+	CallStatusBusy         = 905
 )
 
 type CallsDAO struct {
@@ -61,12 +62,12 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 		if err != nil {
 			return Call{}, err
 		} else if check {
-			c.Status = CallStatusRejected
+			c.Status = CallStatusBusy
 		}
 	}
 
 	err = d.db.Save(&c).Error
-	if err != nil || c.Status == CallStatusRejected {
+	if err != nil || c.Status == CallStatusBusy {
 		return c, err
 	}
 

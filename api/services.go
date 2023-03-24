@@ -229,11 +229,15 @@ func (d *CallService) createRoom(c *data.Call) error {
 }
 
 func (d *CallService) RejectCall(c *data.Call) error {
+	return d.RejectCallWithMessage(c, data.CallRejectedMessage)
+}
+
+func (d *CallService) RejectCallWithMessage(c *data.Call, msgType int) error {
 	msg := &data.Message{
 		Text:   "",
 		ChatID: c.ChatID,
 		UserID: c.InitiatorID,
-		Type:   data.CallRejectedMessage,
+		Type:   msgType,
 	}
 	err := d.mDAO.Save(msg)
 	if err != nil {

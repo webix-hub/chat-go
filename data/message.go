@@ -10,6 +10,7 @@ const (
 	CallStartMessage    = 900
 	CallRejectedMessage = 901
 	CallMissedMessage   = 902
+	CallBusyMessage     = 903
 	AttachedFile        = 800
 )
 
