@@ -122,7 +122,7 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 	}
 
 	must(api.AddService("message", &MessagesAPI{db, featuresConfig}))
-	must(api.AddService("chat", &ChatsAPI{db}))
+	must(api.AddService("chat", &ChatsAPI{db, service}))
 	must(api.AddService("call", &CallsAPI{db, service}))
 
 	// provide user's id

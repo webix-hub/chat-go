@@ -252,6 +252,21 @@ func (d *CallService) RejectCallWithMessage(c *data.Call, msgType int) error {
 	return nil
 }
 
+func (d *CallService) UpdateCallUsers(c *data.Call, users []int) error {
+	_, deleted, err := d.cDAO.UpdateCallUsers(c, users)
+	if err != nil {
+		return err
+	}
+
+	if len(deleted) > 0 {
+		// notify call participants to disconnect users that where deleted from the chat
+		c.Status = data.CallStatusDisconnected
+		d.sendEvent(c, deleted...)
+	}
+
+	return nil
+}
+
 func (d *CallService) endCall(c *data.Call) error {
 	if d.withLivekit {
 		// should delete room as the call has been ended

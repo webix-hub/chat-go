@@ -72,7 +72,7 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 	}
 
 	// add info about the users who can participate in this call
-	err = d.addCallUsers(&c, device)
+	err = d.setCallUsers(&c, device)
 
 	return c, err
 }
@@ -195,33 +195,90 @@ func (d *CallsDAO) checkIfUserInCall(uid int) (bool, error) {
 	return check.ID != 0, err
 }
 
-func (d *CallsDAO) addCallUsers(call *Call, deviceId int) error {
+func (d *CallsDAO) setCallUsers(call *Call, initiatorDeviceId int) error {
 	chatusers, err := d.dao.UserChats.ByChat(call.ChatID)
 	if err != nil {
 		return err
 	}
 
-	// add users to call
-	call.Users = make([]CallUser, len(chatusers))
-	for i, u := range chatusers {
+	for _, u := range chatusers {
 		cu := CallUser{
 			CallID: call.ID,
 			UserID: u.UserID,
 		}
 		if u.UserID == call.InitiatorID {
-			cu.DeviceID = deviceId
+			cu.DeviceID = initiatorDeviceId
 			cu.Connected = true
 		}
-
-		err = d.dao.CallUsers.AddUser(cu.CallID, cu.UserID, cu.DeviceID, cu.Connected)
+		err := d.addCallUser(call, cu)
 		if err != nil {
 			return err
 		}
-
-		call.Users[i] = cu
 	}
 
 	return nil
+}
+
+func (d *CallsDAO) UpdateCallUsers(call *Call, chatusers []int) ([]CallUser, []CallUser, error) {
+	// clear call users
+	err := d.dao.CallUsers.db.Delete(&CallUser{}, "call_id = ?", call.ID).Error
+	if err != nil {
+		return nil, nil, err
+	}
+
+	oldCallUsers := make([]CallUser, len(call.Users))
+	copy(oldCallUsers, call.Users)
+	call.Users = make([]CallUser, 0)
+
+	findUser := func(userId int, users []CallUser) CallUser {
+		for i := range users {
+			if users[i].UserID == userId {
+				return users[i]
+			}
+		}
+		return CallUser{}
+	}
+
+	added := make([]CallUser, 0)
+	deleted := make([]CallUser, 0)
+
+	for _, userId := range chatusers {
+		u := findUser(userId, oldCallUsers)
+		if u.UserID == 0 {
+			// new user added
+			u = CallUser{
+				CallID: call.ID,
+				UserID: userId,
+			}
+			added = append(added, u)
+		}
+		err = d.addCallUser(call, u)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	for _, u := range oldCallUsers {
+		check := findUser(u.UserID, call.Users)
+		if check.UserID == 0 {
+			// deleted user
+			deleted = append(deleted, CallUser{UserID: u.UserID})
+		}
+	}
+
+	return added, deleted, nil
+}
+
+func (d *CallsDAO) addCallUser(call *Call, cu CallUser) error {
+	// add user to call
+	cu.CallID = call.ID
+
+	err := d.dao.CallUsers.AddUser(cu.CallID, cu.UserID, cu.DeviceID, cu.Connected)
+	if err == nil {
+		call.Users = append(call.Users, cu)
+	}
+
+	return err
 }
 
 func (c *Call) GetUsersIDs() []int {
