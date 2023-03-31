@@ -63,6 +63,15 @@ func (d *CallService) dropNotAccepted(id int) {
 	if call.Status == data.CallStatusInitiated {
 		_ = d.callStatusUpdate(&call, data.CallStatusIgnored)
 		d.sendEvent(&call)
+	} else if call.IsGroupCall {
+		notAcceptedUsers := make([]data.CallUser, 0)
+		for _, u := range call.Users {
+			if !u.Connected && u.DeviceID == 0 {
+				notAcceptedUsers = append(notAcceptedUsers, u)
+			}
+		}
+		call.Status = data.CallStatusIgnored
+		d.sendEvent(&call, notAcceptedUsers...)
 	}
 }
 
