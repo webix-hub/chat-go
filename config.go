@@ -2,13 +2,13 @@ package main
 
 import (
 	"log"
-	"mkozhukh/chat/api"
 	"mkozhukh/chat/data"
+	"mkozhukh/chat/service"
 
 	"github.com/jinzhu/configor"
 )
 
-//Config contains global app's configuration
+// Config contains global app's configuration
 var Config AppConfig
 
 // AppConfig contains app's configuration
@@ -27,10 +27,10 @@ type AppConfig struct {
 		Path     string //sqlite
 	}
 	Features data.FeaturesConfig
-	Livekit  api.LivekitConfig
+	Livekit  service.LivekitConfig
 }
 
-//LoadFromFile method loads and parses config file
+// LoadFromFile method loads and parses config file
 func (c *AppConfig) LoadFromFile(url string) {
 	err := configor.Load(&Config, url)
 	if err != nil {

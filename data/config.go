@@ -9,3 +9,4 @@ type FeaturesConfig struct {
 }
 
 var ErrFeatureDisabled = errors.New("feature disabled")
+var ErrAccessDenied = errors.New("access denied")

@@ -41,14 +41,6 @@ func NewCallsDAO(dao *DAO, db *gorm.DB) CallsDAO {
 }
 
 func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
-	// check if initiator is already in call
-	check, err := d.checkIfUserInCall(from)
-	if err != nil {
-		return Call{}, err
-	} else if check {
-		return Call{}, errors.New("already in the call")
-	}
-
 	c := Call{
 		InitiatorID: from,
 		Status:      CallStatusInitiated,
@@ -56,18 +48,8 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 		ChatID:      chatId,
 	}
 
-	if !c.IsGroupCall {
-		// check if the user being called is already in a call
-		check, err = d.checkIfUserInCall(to)
-		if err != nil {
-			return Call{}, err
-		} else if check {
-			c.Status = CallStatusBusy
-		}
-	}
-
-	err = d.db.Save(&c).Error
-	if err != nil || c.Status == CallStatusBusy {
+	err := d.db.Save(&c).Error
+	if err != nil {
 		return c, err
 	}
 
@@ -179,13 +161,13 @@ func (d *CallsDAO) CheckIfChatInCall(chatId int) (Call, error) {
 	return call, err
 }
 
-func (d *CallsDAO) checkIfUserInCall(uid int) (bool, error) {
+func (d *CallsDAO) CheckIfUserInCall(userId int) (bool, error) {
 	sql := "SELECT `calls`.* FROM `calls` " +
 		"JOIN `call_user` ON `calls`.`id` = `call_user`.`call_id` AND `call_user`.`connected` = 1 AND `call_user`.`user_id` = ? " +
 		"WHERE `calls`.`status` = ? OR `calls`.`status` = ?"
 
 	check := Call{}
-	err := d.db.Raw(sql, uid, CallStatusActive, CallStatusInitiated).Scan(&check).Error
+	err := d.db.Raw(sql, userId, CallStatusActive, CallStatusInitiated).Scan(&check).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -219,7 +201,7 @@ func (d *CallsDAO) setCallUsers(call *Call, initiatorDeviceId int) error {
 	return nil
 }
 
-func (d *CallsDAO) UpdateCallUsers(call *Call, chatusers []int) ([]CallUser, []CallUser, error) {
+func (d *CallsDAO) RefreshCallUsers(call *Call, chatusers []int) ([]CallUser, []CallUser, error) {
 	// clear call users
 	err := d.dao.CallUsers.db.Delete(&CallUser{}, "call_id = ?", call.ID).Error
 	if err != nil {
@@ -295,4 +277,22 @@ func (c *Call) GetDevicesIDs() []int {
 		devices[i] = u.DeviceID
 	}
 	return devices
+}
+
+func (c *Call) GetByDeviceID(v int) *CallUser {
+	for i := range c.Users {
+		if c.Users[i].DeviceID == v {
+			return &c.Users[i]
+		}
+	}
+	return nil
+}
+
+func (c *Call) GetByUserID(v int) *CallUser {
+	for i := range c.Users {
+		if c.Users[i].UserID == v {
+			return &c.Users[i]
+		}
+	}
+	return nil
 }

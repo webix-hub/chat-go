@@ -17,10 +17,10 @@ func NewCallUsersDAO(db *gorm.DB) CallUsersDAO {
 	return CallUsersDAO{db}
 }
 
-func (cu *CallUsersDAO) AddUser(callId, uid, device int, connected bool) error {
+func (cu *CallUsersDAO) AddUser(callId, userId, device int, connected bool) error {
 	cp := CallUser{
 		CallID:    callId,
-		UserID:    uid,
+		UserID:    userId,
 		DeviceID:  device,
 		Connected: connected,
 	}
@@ -29,10 +29,10 @@ func (cu *CallUsersDAO) AddUser(callId, uid, device int, connected bool) error {
 	return err
 }
 
-func (cu *CallUsersDAO) UpdateUserDeviceID(callId, uid, device int) error {
+func (cu *CallUsersDAO) UpdateUserDeviceID(callId, userId, device int) error {
 	err := cu.db.
 		Model(&CallUser{}).
-		Where("call_id = ? AND user_id = ?", callId, uid).
+		Where("call_id = ? AND user_id = ?", callId, userId).
 		Updates(map[string]interface{}{
 			"device_id": device,
 			"connected": true,
@@ -41,10 +41,10 @@ func (cu *CallUsersDAO) UpdateUserDeviceID(callId, uid, device int) error {
 	return err
 }
 
-func (cu *CallUsersDAO) UpdateUserConnState(callId, uid int, connected bool) error {
+func (cu *CallUsersDAO) UpdateUserConnState(callId, userId int, connected bool) error {
 	err := cu.db.
 		Model(&CallUser{}).
-		Where("call_id = ? AND user_id = ?", callId, uid).
+		Where("call_id = ? AND user_id = ?", callId, userId).
 		Updates(map[string]interface{}{
 			"connected": connected,
 		}).Error

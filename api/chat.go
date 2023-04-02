@@ -2,13 +2,14 @@ package api
 
 import (
 	"mkozhukh/chat/data"
+	"mkozhukh/chat/service"
 
 	remote "github.com/mkozhukh/go-remote"
 )
 
 type ChatsAPI struct {
-	db    *data.DAO
-	sCall *CallService
+	db   *data.DAO
+	sAll *service.ServiceAll
 }
 
 type ChatEvent struct {
@@ -60,7 +61,7 @@ func (d *ChatsAPI) AddGroup(name, avatar string, users []int, userId UserID, eve
 
 func (d *ChatsAPI) Update(chatId int, name string, avatar string, userId UserID, events *remote.Hub) (*data.UserChatDetails, error) {
 	if !d.db.UsersCache.HasChat(int(userId), chatId) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	// sanitize input
@@ -77,7 +78,7 @@ func (d *ChatsAPI) Update(chatId int, name string, avatar string, userId UserID,
 
 func (d *ChatsAPI) SetUsers(chatId int, users []int, userId UserID, events *remote.Hub) (*data.UserChatDetails, error) {
 	if !d.db.UsersCache.HasChat(int(userId), chatId) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	oldUsers := d.db.UsersCache.GetUsers(chatId)
@@ -87,16 +88,10 @@ func (d *ChatsAPI) SetUsers(chatId int, users []int, userId UserID, events *remo
 		return nil, err
 	}
 
-	if d.sCall.withLivekit {
-		c, err := d.db.Calls.CheckIfChatInCall(chatId)
-		if err != nil {
-			return nil, err
-		}
-		// update call users
-		err = d.sCall.UpdateCallUsers(&c, updUsers)
-		if err != nil {
-			return nil, err
-		}
+	// update call users
+	err = d.sAll.GroupCalls.RefreshCallUsers(chatId, updUsers)
+	if err != nil {
+		return nil, err
 	}
 
 	return d.getChatInfo(chatId, int(userId), events, oldUsers)
@@ -104,7 +99,7 @@ func (d *ChatsAPI) SetUsers(chatId int, users []int, userId UserID, events *remo
 
 func (d *ChatsAPI) Leave(chatId int, userId UserID, events *remote.Hub) error {
 	if !d.db.UsersCache.HasChat(int(userId), chatId) {
-		return AccessDeniedError
+		return data.ErrAccessDenied
 	}
 
 	oldUsers := d.db.UsersCache.GetUsers(chatId)
@@ -114,16 +109,17 @@ func (d *ChatsAPI) Leave(chatId int, userId UserID, events *remote.Hub) error {
 		return err
 	}
 
-	if d.sCall.withLivekit {
-		c, err := d.db.Calls.CheckIfChatInCall(chatId)
+	if data.Features.WithGroupCalls {
+		call, err := d.db.Calls.CheckIfChatInCall(chatId)
 		if err != nil {
 			return err
 		}
-		if c.ID != 0 {
-			c.Status = data.CallStatusDisconnected
-			// notify to disconnect user
-			d.sCall.sendEvent(&c, data.CallUser{UserID: int(userId)})
-		}
+		// notify to disconnect user
+		d.sAll.Informer.SendSignalToCall(
+			&call,
+			data.CallStatusDisconnected,
+			data.CallUser{UserID: int(userId)},
+		)
 	}
 
 	info, err := d.db.UserChats.GetOneLeaved(chatId)

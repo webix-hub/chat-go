@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 
 	remote "github.com/mkozhukh/go-remote"
 
 	"mkozhukh/chat/data"
+	"mkozhukh/chat/service"
 )
 
 type UserID int
@@ -16,15 +16,13 @@ type DeviceID int
 type UserList []data.User
 type ChatList []data.UserChatDetails
 
-var AccessDeniedError = errors.New("access denied")
-
 type UserEvent struct {
 	Op     string      `json:"op"`
 	UserID int         `json:"user_id"`
 	Data   interface{} `json:"data"`
 }
 
-func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig LivekitConfig) *remote.Server {
+func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.LivekitConfig) *remote.Server {
 	if remote.MaxSocketMessageSize < 32000 {
 		remote.MaxSocketMessageSize = 32000
 	}
@@ -33,11 +31,13 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 		WebSocket: true,
 	})
 
-	var livekit *LivekitService
-	if featuresConfig.WithGroupCalls {
-		livekit = newLivekitService(livekitConfig)
-	}
-	service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events, livekit)
+	// var livekit *LivekitService
+	// if features.WithGroupCalls {
+	// 	livekit = newLivekitService(livekitConfig)
+	// }
+	// service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events, livekit)
+
+	sAll := service.NewService(db, api.Events, lkConfig)
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(data.MessageEvent)
@@ -72,7 +72,7 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 	})
 
 	api.Events.AddGuard("signal", func(m *remote.Message, c *remote.Client) bool {
-		tm, ok := m.Content.(Signal)
+		tm, ok := m.Content.(service.Signal)
 		if !ok {
 			return false
 		}
@@ -103,17 +103,17 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 		if u.Status {
 			status = data.StatusOnline
 		}
-		go service.ChangeOnlineStatus(u.Connection, status)
+		go sAll.UsersActivity.ChangeOnlineStatus(u.Connection, status)
 	}
 
 	api.Connect = func(r *http.Request) (context.Context, error) {
 		id, _ := r.Context().Value("user_id").(int)
 		if id == 0 {
-			return nil, errors.New("access denied")
+			return nil, data.ErrAccessDenied
 		}
 		device, _ := r.Context().Value("device_id").(int)
 		if device == 0 {
-			return nil, errors.New("access denied")
+			return nil, data.ErrAccessDenied
 		}
 
 		return context.WithValue(
@@ -121,9 +121,9 @@ func BuildAPI(db *data.DAO, featuresConfig data.FeaturesConfig, livekitConfig Li
 			remote.ConnectionValue, device), nil
 	}
 
-	must(api.AddService("message", &MessagesAPI{db, featuresConfig}))
-	must(api.AddService("chat", &ChatsAPI{db, service}))
-	must(api.AddService("call", &CallsAPI{db, service}))
+	must(api.AddService("message", &MessagesAPI{db, features}))
+	must(api.AddService("chat", &ChatsAPI{db, sAll}))
+	must(api.AddService("call", &CallsAPI{db, sAll}))
 
 	// provide user's id
 	must(api.AddVariable("user", UserID(0)))
@@ -158,6 +158,14 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 	}))
 	must(api.Dependencies.AddProvider(func(ctx context.Context) *remote.Hub {
 		return api.Events
+	}))
+	must(api.Dependencies.AddProvider(func(ctx context.Context) *service.CallContext {
+		userId, _ := ctx.Value("user_id").(int)
+		deviceId, _ := ctx.Value("device_id").(int)
+		return &service.CallContext{
+			UserID:   userId,
+			DeviceID: deviceId,
+		}
 	}))
 	must(api.Dependencies.AddProvider(func(ctx context.Context) Call {
 		id, _ := ctx.Value("user_id").(int)
