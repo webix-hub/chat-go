@@ -78,17 +78,8 @@ func (d *CallsAPI) SetUserStatus(id, status int, ctx *service.CallContext) error
 
 	err = d.db.CallUsers.UpdateUserConnState(id, ctx.UserID, status)
 
-	service := service.CallProvider.GetService(call.IsGroupCall)
-
 	if status == data.CallUserStatusConnecting {
-		d.sAll.Calls.StartCallTimer(d.sAll.Calls.ReconnectingTimeout, id, func(id int) {
-			call, err := d.db.Calls.Get(id)
-			if err != nil {
-				return
-			}
-			// drop call if the user's reconnecting timed out
-			service.Disconnect(ctx, &call, data.CallStatusDisconnected)
-		})
+		d.sAll.Calls.StartReconnectingTimer(ctx, id)
 	}
 
 	return err

@@ -56,6 +56,8 @@ func (s *personalCallService) Join(ctx *CallContext, call *data.Call) error {
 		s.all.Informer.SendSignalToUser(ctx.UserID, CallDevices{
 			Devices: call.GetDevicesIDs(false),
 		})
+	} else {
+		s.all.Calls.StartReconnectingTimer(ctx, call.ID)
 	}
 
 	return nil

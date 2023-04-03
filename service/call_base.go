@@ -17,6 +17,8 @@ type baseCallService struct {
 	LivekitEnabled      bool
 	notAcceptedTimeout  int // in seconds
 	ReconnectingTimeout int // in seconds
+
+	reconnectingUsers map[int]int64
 }
 
 func newCallService(dao *data.DAO, allService *ServiceAll, withLivekit bool) baseCallService {
@@ -26,7 +28,35 @@ func newCallService(dao *data.DAO, allService *ServiceAll, withLivekit bool) bas
 		LivekitEnabled:      withLivekit,
 		notAcceptedTimeout:  30,
 		ReconnectingTimeout: 30,
+		reconnectingUsers:   make(map[int]int64),
 	}
+}
+
+func (s *baseCallService) StartReconnectingTimer(ctx *CallContext, callId int) {
+	reconnectingTime := time.Now().Unix()
+	s.reconnectingUsers[ctx.UserID] = reconnectingTime
+
+	s.StartCallTimer(s.ReconnectingTimeout, callId, func(_ int) {
+		if t, ok := s.reconnectingUsers[ctx.UserID]; ok && t != reconnectingTime {
+			return
+		}
+
+		call, err := s.dao.Calls.Get(callId)
+		if err != nil {
+			return
+		}
+
+		if call.Status > 900 {
+			return
+		}
+
+		u := call.GetByUserID(ctx.UserID)
+		if u != nil && u.Status == data.CallUserStatusConnecting {
+			// drop call if the user's reconnecting timed out
+			callService := CallProvider.GetService(call.IsGroupCall)
+			callService.Disconnect(ctx, &call, data.CallStatusDisconnected)
+		}
+	})
 }
 
 func (s *baseCallService) SendCallMessage(c *data.Call, messageType int) error {
@@ -92,7 +122,7 @@ func (s *baseCallService) precheckUserAccess(ctx *CallContext, targetChatId int,
 				ChatID:      targetChatId,
 			}
 			s.SendCallMessage(&call, data.CallBusyMessage)
-			return &call, nil
+			return &call, errors.New("line is busy")
 		}
 	}
 
