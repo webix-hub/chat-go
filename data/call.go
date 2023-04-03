@@ -285,7 +285,7 @@ func (d *CallsDAO) addCallUser(call *Call, cu CallUser) error {
 func (c *Call) GetUsersIDs(skipDisconnedted bool) []int {
 	uids := make([]int, 0)
 	for _, u := range c.Users {
-		if skipDisconnedted && u.Status == CallStatusDisconnected {
+		if skipDisconnedted && u.Status == CallUserStatusDisconnected {
 			continue
 		}
 		uids = append(uids, u.UserID)
@@ -296,7 +296,7 @@ func (c *Call) GetUsersIDs(skipDisconnedted bool) []int {
 func (c *Call) GetDevicesIDs(skipDisconnedted bool) []int {
 	devices := make([]int, 0)
 	for _, u := range c.Users {
-		if skipDisconnedted && u.Status == CallStatusDisconnected {
+		if skipDisconnedted && u.Status == CallUserStatusDisconnected {
 			continue
 		}
 		devices = append(devices, u.DeviceID)

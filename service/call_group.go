@@ -151,8 +151,13 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 
 	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
 	if drop {
+		// notify all not disconnected users
+		toUsers, err = s.dao.CallUsers.GetNotDisconnectedCallUsers(call.ID)
+		if err != nil {
+			return err
+		}
+
 		// if the last participant has been disconnected, then end the call
-		toUsers = call.Users
 		err := s.updateStatusAndSendMessage(call, data.CallStatusEnded)
 		if err != nil {
 			return err
