@@ -114,13 +114,16 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 		return err
 	}
 
+	var currentStatus int
+
 	activeCount := 0
 	connectingCount := 0
 	for i := range call.Users {
 		cu := &call.Users[i]
 
 		if cu.UserID == ctx.UserID {
-			// update connection state
+			// update user status
+			currentStatus = cu.Status
 			cu.Status = data.CallUserStatusDisconnected
 		}
 
@@ -137,8 +140,17 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 		return err
 	}
 
+	drop := false
+	if currentStatus == data.CallUserStatusActive && activeCount == 0 {
+		// last active user has been disconnected,
+		// then end the call for all users (including connecting/initiated statuses)
+		drop = true
+	} else if activeCount == 0 && connectingCount == 0 {
+		drop = true
+	}
+
 	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
-	if call.Status == data.CallStatusActive && activeCount == 0 || (connectingCount == 0 && activeCount == 0) {
+	if drop {
 		// if the last participant has been disconnected, then end the call
 		toUsers = call.Users
 		err := s.updateStatusAndSendMessage(call, data.CallStatusEnded)
@@ -161,6 +173,9 @@ func (s *groupCallService) RefreshCallUsers(chatId int, users []int) error {
 	call, err := s.dao.Calls.CheckIfChatInCall(chatId)
 	if err != nil {
 		return err
+	}
+	if call.ID == 0 || call.Status > 900 {
+		return nil
 	}
 
 	_, deleted, err := s.dao.Calls.RefreshCallUsers(&call, users)

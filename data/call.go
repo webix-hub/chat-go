@@ -81,7 +81,7 @@ func (d *CallsDAO) GetByUser(id, device int) (Call, error) {
 		"WHERE `c`.`status` < 900"
 
 	c := Call{}
-	err := d.db.Raw(sql, CallUserStatusInitiated, id, device).Scan(&c).Error
+	err := d.db.Raw(sql, CallUserStatusDisconnected, id, device).Scan(&c).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -123,7 +123,7 @@ func (d *CallsDAO) GetByDevice(id int) (Call, error) {
 		"WHERE `c`.`status` < 900"
 
 	c := Call{}
-	err := d.db.Raw(sql, CallUserStatusInitiated, id).Scan(&c).Error
+	err := d.db.Raw(sql, CallUserStatusDisconnected, id).Scan(&c).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -167,7 +167,7 @@ func (d *CallsDAO) CheckIfUserInCall(userId int) (bool, error) {
 		"WHERE `c`.`status` = ? OR `c`.`status` = ?"
 
 	check := Call{}
-	err := d.db.Raw(sql, CallUserStatusInitiated, userId, CallStatusActive, CallStatusInitiated).Scan(&check).Error
+	err := d.db.Raw(sql, CallUserStatusDisconnected, userId, CallStatusActive, CallStatusInitiated).Scan(&check).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -259,6 +259,10 @@ func (d *CallsDAO) RefreshCallUsers(call *Call, chatusers []int) ([]CallUser, []
 		check := findUser(u.UserID, call.Users)
 		if check.UserID == 0 {
 			// deleted user
+			err := d.dao.CallUsers.UpdateUserConnState(call.ID, u.UserID, CallUserStatusDisconnected)
+			if err != nil {
+				return nil, nil, err
+			}
 			deleted = append(deleted, CallUser{UserID: u.UserID})
 		}
 	}
