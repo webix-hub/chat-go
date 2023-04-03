@@ -54,7 +54,7 @@ func (d *CallsDAO) Start(from, device, to, chatId int) (Call, error) {
 	}
 
 	// add info about the users who can participate in this call
-	err = d.setCallUsers(&c, device)
+	err = d.initCallUsers(&c, device)
 
 	return c, err
 }
@@ -76,12 +76,12 @@ func (d *CallsDAO) Get(id int) (Call, error) {
 }
 
 func (d *CallsDAO) GetByUser(id, device int) (Call, error) {
-	sql := "SELECT `calls`.* FROM `calls` " +
-		"JOIN `call_user` ON `calls`.`id` = `call_user`.`call_id` AND (`call_user`.`user_id` = ? AND (`call_user`.`device_id` = ? OR `call_user`.`device_id` = 0)) " +
-		"WHERE `calls`.`status` < 900"
+	sql := "SELECT `c`.* FROM `calls` `c` " +
+		"JOIN `call_user` `cu` ON `c`.`id` = `cu`.`call_id` AND `cu`.`status` > ? AND (`cu`.`user_id` = ? AND (`cu`.`device_id` = ? OR `cu`.`device_id` = 0)) " +
+		"WHERE `c`.`status` < 900"
 
 	c := Call{}
-	err := d.db.Raw(sql, id, device).Scan(&c).Error
+	err := d.db.Raw(sql, CallUserStatusInitiated, id, device).Scan(&c).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -118,12 +118,12 @@ func (d *CallsDAO) Save(call *Call) error {
 }
 
 func (d *CallsDAO) GetByDevice(id int) (Call, error) {
-	sql := "SELECT `calls`.* FROM `calls` " +
-		"JOIN `call_user` ON `calls`.`id` = `call_user`.`call_id` AND `call_user`.`connected` = 1 AND `call_user`.`device_id` = ? " +
-		"WHERE `calls`.`status` < 900"
+	sql := "SELECT `c`.* FROM `calls` `c` " +
+		"JOIN `call_user` `cu` ON `c`.`id` = `cu`.`call_id` AND `cu`.`status` > ? AND `cu`.`device_id` = ? " +
+		"WHERE `c`.`status` < 900"
 
 	c := Call{}
-	err := d.db.Raw(sql, id).Scan(&c).Error
+	err := d.db.Raw(sql, CallUserStatusInitiated, id).Scan(&c).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -162,12 +162,12 @@ func (d *CallsDAO) CheckIfChatInCall(chatId int) (Call, error) {
 }
 
 func (d *CallsDAO) CheckIfUserInCall(userId int) (bool, error) {
-	sql := "SELECT `calls`.* FROM `calls` " +
-		"JOIN `call_user` ON `calls`.`id` = `call_user`.`call_id` AND `call_user`.`connected` = 1 AND `call_user`.`user_id` = ? " +
-		"WHERE `calls`.`status` = ? OR `calls`.`status` = ?"
+	sql := "SELECT `c`.* FROM `calls` `c` " +
+		"JOIN `call_user` `cu` ON `c`.`id` = `cu`.`call_id` AND `cu`.`status` > ? AND `cu`.`user_id` = ? " +
+		"WHERE `c`.`status` = ? OR `c`.`status` = ?"
 
 	check := Call{}
-	err := d.db.Raw(sql, userId, CallStatusActive, CallStatusInitiated).Scan(&check).Error
+	err := d.db.Raw(sql, CallUserStatusInitiated, userId, CallStatusActive, CallStatusInitiated).Scan(&check).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
@@ -177,22 +177,36 @@ func (d *CallsDAO) CheckIfUserInCall(userId int) (bool, error) {
 	return check.ID != 0, err
 }
 
-func (d *CallsDAO) setCallUsers(call *Call, initiatorDeviceId int) error {
+func (d *CallsDAO) initCallUsers(call *Call, initiatorDeviceId int) error {
 	chatusers, err := d.dao.UserChats.ByChat(call.ChatID)
 	if err != nil {
 		return err
 	}
 
+	// users, err := d.GetNotInCallUsers(chatusers)
+
 	for _, u := range chatusers {
 		cu := CallUser{
 			CallID: call.ID,
 			UserID: u.UserID,
+			Status: CallUserStatusInitiated,
 		}
+
+		// if the user is already in another call, then set the status = 'disconnected'
+		busy, err := d.CheckIfUserInCall(cu.UserID)
+		if err != nil {
+			return err
+		}
+		if busy {
+			cu.Status = CallUserStatusDisconnected
+		}
+
 		if u.UserID == call.InitiatorID {
 			cu.DeviceID = initiatorDeviceId
-			cu.Connected = true
+			cu.Status = CallUserStatusConnecting
 		}
-		err := d.addCallUser(call, cu)
+
+		err = d.addCallUser(call, cu)
 		if err != nil {
 			return err
 		}
@@ -231,6 +245,7 @@ func (d *CallsDAO) RefreshCallUsers(call *Call, chatusers []int) ([]CallUser, []
 			u = CallUser{
 				CallID: call.ID,
 				UserID: userId,
+				Status: CallUserStatusDisconnected,
 			}
 			added = append(added, u)
 		}
@@ -255,7 +270,7 @@ func (d *CallsDAO) addCallUser(call *Call, cu CallUser) error {
 	// add user to call
 	cu.CallID = call.ID
 
-	err := d.dao.CallUsers.AddUser(cu.CallID, cu.UserID, cu.DeviceID, cu.Connected)
+	err := d.dao.CallUsers.AddUser(cu.CallID, cu.UserID, cu.DeviceID, cu.Status)
 	if err == nil {
 		call.Users = append(call.Users, cu)
 	}
@@ -263,18 +278,24 @@ func (d *CallsDAO) addCallUser(call *Call, cu CallUser) error {
 	return err
 }
 
-func (c *Call) GetUsersIDs() []int {
-	uids := make([]int, len(c.Users))
-	for i, u := range c.Users {
-		uids[i] = u.UserID
+func (c *Call) GetUsersIDs(skipDisconnedted bool) []int {
+	uids := make([]int, 0)
+	for _, u := range c.Users {
+		if skipDisconnedted && u.Status == CallStatusDisconnected {
+			continue
+		}
+		uids = append(uids, u.UserID)
 	}
 	return uids
 }
 
-func (c *Call) GetDevicesIDs() []int {
-	devices := make([]int, len(c.Users))
-	for i, u := range c.Users {
-		devices[i] = u.DeviceID
+func (c *Call) GetDevicesIDs(skipDisconnedted bool) []int {
+	devices := make([]int, 0)
+	for _, u := range c.Users {
+		if skipDisconnedted && u.Status == CallStatusDisconnected {
+			continue
+		}
+		devices = append(devices, u.DeviceID)
 	}
 	return devices
 }

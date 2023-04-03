@@ -30,7 +30,7 @@ func (s *personalCallService) Start(ctx *CallContext, targetChatId, targetUserId
 		}
 	}
 	s.all.Informer.SendSignalToCall(&call, call.Status)
-	s.startCallTimer(call.ID, s.dropNotAcceptedHandler)
+	s.StartCallTimer(s.notAcceptedTimeout, call.ID, s.dropNotAcceptedHandler)
 
 	return &call, err
 }
@@ -54,7 +54,7 @@ func (s *personalCallService) Join(ctx *CallContext, call *data.Call) error {
 		// inform other devices to end the incoming call
 		// as it is already accepted on the current device
 		s.all.Informer.SendSignalToUser(ctx.UserID, CallDevices{
-			Devices: call.GetDevicesIDs(),
+			Devices: call.GetDevicesIDs(false),
 		})
 	}
 

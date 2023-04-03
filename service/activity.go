@@ -55,7 +55,7 @@ func (s *usersActivityService) checkOfflineUsers() {
 				cu := data.CallUser{}
 				for _, u := range c.Users {
 					if u.DeviceID == cu.DeviceID {
-						s.dao.CallUsers.UpdateUserConnState(c.ID, u.UserID, false)
+						s.dao.CallUsers.UpdateUserConnState(c.ID, u.UserID, data.CallUserStatusDisconnected)
 						s.all.Informer.SendSignalToCall(&c, data.CallStatusLost, u)
 						break
 					}

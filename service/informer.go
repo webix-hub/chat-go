@@ -52,14 +52,14 @@ func (s *informerService) SendSignalToCall(c *data.Call, status int, to ...data.
 		status = c.Status
 	}
 
-	data := Call{
+	msgData := Call{
 		ID:          c.ID,
 		Status:      status,
 		Start:       c.Start,
 		InitiatorID: c.InitiatorID,
 		IsGroupCall: c.IsGroupCall,
 		ChatID:      c.ChatID,
-		Users:       c.GetUsersIDs(),
+		Users:       c.GetUsersIDs(false),
 	}
 
 	var devices []int
@@ -70,11 +70,11 @@ func (s *informerService) SendSignalToCall(c *data.Call, status int, to ...data.
 			users = append(users, cu.UserID)
 		}
 	} else {
-		devices = c.GetDevicesIDs()
-		users = c.GetUsersIDs()
+		devices = c.GetDevicesIDs(true)
+		users = c.GetUsersIDs(true)
 	}
 
-	s.SendSignal("connect", data, users, devices)
+	s.SendSignal("connect", msgData, users, devices)
 }
 
 func (s *informerService) SendSignalToUser(targetUserId int, payload interface{}) {

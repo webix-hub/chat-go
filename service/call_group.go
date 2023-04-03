@@ -57,10 +57,8 @@ func (s *groupCallService) Start(ctx *CallContext, targetChatId, targetUserId in
 	if err != nil {
 		return nil, err
 	}
-	// notify the call users about new call
-	// FIXME: notify only users who not in the active call now (or control this on client side)
 	s.all.Informer.SendSignalToCall(&call, call.Status)
-	s.startCallTimer(call.ID, s.dropNotAcceptedHandler)
+	s.StartCallTimer(s.notAcceptedTimeout, call.ID, s.dropNotAcceptedHandler)
 
 	return &call, err
 }
@@ -72,7 +70,7 @@ func (s *groupCallService) Join(ctx *CallContext, call *data.Call) error {
 	}
 
 	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
-	if call.Status == data.CallStatusInitiated {
+	if call.Status == data.CallStatusInitiated && notify {
 		// when the first user other than the initiator joins the call,
 		// should notify the initiator that the call has been accepted
 		cu := call.GetByUserID(call.InitiatorID)
@@ -92,7 +90,7 @@ func (s *groupCallService) Join(ctx *CallContext, call *data.Call) error {
 		// inform other devices to end the incoming call
 		// as it is already accepted on the current device
 		s.all.Informer.SendSignalToUser(ctx.UserID, CallDevices{
-			Devices: call.GetDevicesIDs(),
+			Devices: call.GetDevicesIDs(false),
 		})
 	}
 
@@ -114,34 +112,31 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 		return err
 	}
 
-	isLastParticipant := true
+	activeCount := 0
+	connectingCount := 0
 	for i := range call.Users {
 		cu := &call.Users[i]
 
 		if cu.UserID == ctx.UserID {
 			// update connection state
-			cu.Connected = false
-			if cu.DeviceID == 0 {
-				// update deviceId if it was not defined
-				err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID)
-				if err != nil {
-					return err
-				}
-			}
+			cu.Status = data.CallUserStatusDisconnected
 		}
 
-		if isLastParticipant && cu.Connected {
-			isLastParticipant = false
+		if cu.Status == data.CallUserStatusActive {
+			activeCount++
+		}
+		if cu.Status == data.CallUserStatusConnecting {
+			connectingCount++
 		}
 	}
 
-	err := s.dao.CallUsers.UpdateUserConnState(call.ID, ctx.UserID, false)
+	err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID, data.CallUserStatusDisconnected)
 	if err != nil {
 		return err
 	}
 
 	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
-	if isLastParticipant {
+	if call.Status == data.CallStatusActive && activeCount == 0 || (connectingCount == 0 && activeCount == 0) {
 		// if the last participant has been disconnected, then end the call
 		toUsers = call.Users
 		err := s.updateStatusAndSendMessage(call, data.CallStatusEnded)
@@ -187,7 +182,7 @@ func (s *groupCallService) dropNotAcceptedHandler(id int) {
 
 	notAcceptedUsers := make([]data.CallUser, 0)
 	for _, u := range call.Users {
-		if !u.Connected && u.DeviceID == 0 {
+		if u.Status == data.CallUserStatusInitiated && u.DeviceID == 0 {
 			notAcceptedUsers = append(notAcceptedUsers, u)
 		}
 	}

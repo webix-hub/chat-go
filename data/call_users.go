@@ -6,47 +6,54 @@ type CallUsersDAO struct {
 	db *gorm.DB
 }
 
+const (
+	CallUserStatusDisconnected = 0
+	CallUserStatusInitiated    = 1
+	CallUserStatusConnecting   = 2
+	CallUserStatusActive       = 3
+)
+
 type CallUser struct {
-	CallID    int `gorm:"primaryKey;autoIncrement:false"`
-	UserID    int `gorm:"primaryKey;autoIncrement:false"`
-	DeviceID  int
-	Connected bool
+	CallID   int `gorm:"primaryKey;autoIncrement:false"`
+	UserID   int `gorm:"primaryKey;autoIncrement:false"`
+	DeviceID int
+	Status   int
 }
 
 func NewCallUsersDAO(db *gorm.DB) CallUsersDAO {
 	return CallUsersDAO{db}
 }
 
-func (cu *CallUsersDAO) AddUser(callId, userId, device int, connected bool) error {
+func (cu *CallUsersDAO) AddUser(callId, userId, device int, status int) error {
 	cp := CallUser{
-		CallID:    callId,
-		UserID:    userId,
-		DeviceID:  device,
-		Connected: connected,
+		CallID:   callId,
+		UserID:   userId,
+		DeviceID: device,
+		Status:   status,
 	}
 	err := cu.db.Create(&cp).Error
 
 	return err
 }
 
-func (cu *CallUsersDAO) UpdateUserDeviceID(callId, userId, device int) error {
+func (cu *CallUsersDAO) UpdateUserDeviceID(callId, userId, device int, status int) error {
 	err := cu.db.
 		Model(&CallUser{}).
 		Where("call_id = ? AND user_id = ?", callId, userId).
 		Updates(map[string]interface{}{
 			"device_id": device,
-			"connected": true,
+			"status":    status,
 		}).Error
 
 	return err
 }
 
-func (cu *CallUsersDAO) UpdateUserConnState(callId, userId int, connected bool) error {
+func (cu *CallUsersDAO) UpdateUserConnState(callId, userId int, status int) error {
 	err := cu.db.
 		Model(&CallUser{}).
 		Where("call_id = ? AND user_id = ?", callId, userId).
 		Updates(map[string]interface{}{
-			"connected": connected,
+			"status": status,
 		}).Error
 
 	return err
@@ -63,7 +70,7 @@ func (cu *CallUsersDAO) EndCall(callId int) error {
 		Model(&CallUser{}).
 		Where("call_id = ?", callId).
 		Updates(map[string]interface{}{
-			"connected": false,
+			"status": 0,
 		}).Error
 
 	return err

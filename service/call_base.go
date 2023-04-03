@@ -15,7 +15,8 @@ type baseCallService struct {
 	all *ServiceAll
 
 	LivekitEnabled      bool
-	notAcceptedInterval int // in seconds
+	notAcceptedTimeout  int // in seconds
+	ReconnectingTimeout int // in seconds
 }
 
 func newCallService(dao *data.DAO, allService *ServiceAll, withLivekit bool) baseCallService {
@@ -23,7 +24,8 @@ func newCallService(dao *data.DAO, allService *ServiceAll, withLivekit bool) bas
 		dao:                 dao,
 		all:                 allService,
 		LivekitEnabled:      withLivekit,
-		notAcceptedInterval: 30,
+		notAcceptedTimeout:  30,
+		ReconnectingTimeout: 30,
 	}
 }
 
@@ -55,6 +57,12 @@ func (s *baseCallService) CreateJoinToken(ctx *CallContext, callId int) (string,
 	token, err := s.all.Livekit.CreateJoinToken(call.RoomName, fmt.Sprintf("%d", ctx.UserID))
 
 	return token, err
+}
+
+func (s *baseCallService) StartCallTimer(duration, id int, cb func(id int)) {
+	time.AfterFunc(time.Duration(duration)*time.Second, func() {
+		cb(id)
+	})
 }
 
 func (s *baseCallService) precheckUserAccess(ctx *CallContext, targetChatId int, targetUserId int) (*data.Call, error) {
@@ -93,6 +101,11 @@ func (s *baseCallService) precheckUserAccess(ctx *CallContext, targetChatId int,
 
 func (s *baseCallService) updateStatusAndSendMessage(call *data.Call, status int) error {
 	var err error
+
+	if status == data.CallStatusDisconnected {
+		status = data.CallStatusEnded
+	}
+
 	if status > 900 {
 		if call.Status > 900 {
 			return nil
@@ -119,12 +132,12 @@ func (s *baseCallService) updateStatusAndSendMessage(call *data.Call, status int
 	from := 0
 
 	switch status {
-	case data.CallStatusEnded, data.CallStatusLost:
+	case data.CallStatusDisconnected, data.CallStatusEnded, data.CallStatusLost:
 		var diff float64
 		if call.Start != nil {
 			diff = time.Since(*call.Start).Seconds()
+			msg.Date = *call.Start
 		}
-		msg.Date = *call.Start
 		msg.Text = fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff)%60)
 		msg.Type = data.CallStartMessage
 	case data.CallStatusRejected:
@@ -184,26 +197,22 @@ func (s *baseCallService) updateAcceptedCall(ctx *CallContext, call *data.Call) 
 		return false, data.ErrAccessDenied
 	}
 
-	cu.Connected = true
-
-	if cu.DeviceID != 0 && ctx.DeviceID == cu.DeviceID {
-		// if the user is already in the call
-		// and the user attemps to reconnect from the same device,
-		// then set connecting state equals true
-		err := s.dao.CallUsers.UpdateUserConnState(call.ID, ctx.UserID, true)
-		return false, err
+	if cu.Status == data.CallUserStatusActive {
+		return false, fmt.Errorf("already in the call")
 	}
-	// if the user accepts the call for the first time or from another device,
-	// then should update info about him
-	cu.DeviceID = ctx.DeviceID
-	err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID)
-	return true, err
-}
 
-func (s *baseCallService) startCallTimer(id int, cb func(id int)) {
-	time.AfterFunc(time.Duration(s.notAcceptedInterval)*time.Second, func() {
-		cb(id)
-	})
+	userStatus := data.CallUserStatusConnecting
+	if cu.Status == data.CallUserStatusConnecting ||
+		call.Status == data.CallStatusInitiated && cu.Status == data.CallUserStatusInitiated {
+		userStatus = data.CallUserStatusActive
+	}
+
+	cu.Status = userStatus
+	cu.DeviceID = ctx.DeviceID
+
+	err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID, userStatus)
+
+	return cu.Status == data.CallUserStatusActive, err
 }
 
 func (s *baseCallService) end(c *data.Call) error {

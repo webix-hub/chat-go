@@ -174,10 +174,10 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 
 		var callName, callAvatar string
 		if call.IsGroupCall {
-			// if user disconnected from the call, then do not show it to him again
+			// if user disconnected from the call, then don't send call info
 			// but he can reconnect to this call manually (by clicking "Start call" button on the client side)
 			for _, cu := range call.Users {
-				if cu.UserID == id && cu.DeviceID != 0 && !cu.Connected {
+				if cu.UserID == id && cu.DeviceID != 0 && cu.Status == data.CallUserStatusDisconnected {
 					return Call{}
 				}
 			}
@@ -196,7 +196,7 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 			InitiatorID: call.InitiatorID,
 			IsGroupCall: call.IsGroupCall,
 			ChatID:      call.ChatID,
-			Users:       call.GetUsersIDs(),
+			Users:       call.GetUsersIDs(false),
 		}
 	}))
 }

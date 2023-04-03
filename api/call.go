@@ -37,7 +37,7 @@ func (d *CallsAPI) Start(targetUserId int, targetChatId int, ctx *service.CallCo
 		Start:       call.Start,
 		InitiatorID: call.InitiatorID,
 		IsGroupCall: call.IsGroupCall,
-		Users:       call.GetUsersIDs(),
+		Users:       call.GetUsersIDs(false),
 	}, nil
 }
 
@@ -58,6 +58,40 @@ func (d *CallsAPI) SetStatus(id, status int, ctx *service.CallContext) (int, err
 	}
 
 	return call.Status, err
+}
+
+func (d *CallsAPI) SetUserStatus(id, status int, ctx *service.CallContext) error {
+	call, err := d.db.Calls.Get(id)
+	if err != nil {
+		return err
+	}
+	if call.Status > 900 {
+		return nil
+	}
+	user := call.GetByUserID(ctx.UserID)
+	if user == nil {
+		return err
+	}
+	if user.Status == status {
+		return nil
+	}
+
+	err = d.db.CallUsers.UpdateUserConnState(id, ctx.UserID, status)
+
+	service := service.CallProvider.GetService(call.IsGroupCall)
+
+	if status == data.CallUserStatusConnecting {
+		d.sAll.Calls.StartCallTimer(d.sAll.Calls.ReconnectingTimeout, id, func(id int) {
+			call, err := d.db.Calls.Get(id)
+			if err != nil {
+				return
+			}
+			// drop call if the user's reconnecting timed out
+			service.Disconnect(ctx, &call, data.CallStatusDisconnected)
+		})
+	}
+
+	return err
 }
 
 func (d *CallsAPI) Signal(signalType, msg string, ctx *service.CallContext) error {
