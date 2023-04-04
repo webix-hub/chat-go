@@ -31,9 +31,14 @@ func (s *groupCallService) Start(ctx *CallContext, targetChatId, targetUserId in
 		return nil, data.ErrFeatureDisabled
 	}
 
-	c, err := s.precheckUserAccess(ctx, targetChatId, targetUserId)
+	err := s.checkUserAccess(targetChatId, ctx.UserID)
 	if err != nil {
-		return c, err
+		return nil, err
+	}
+
+	err = s.checkForActiveCall(ctx, targetChatId, targetUserId)
+	if err != nil {
+		return nil, err
 	}
 
 	// check if the chat is in active call
@@ -70,17 +75,20 @@ func (s *groupCallService) Join(ctx *CallContext, call *data.Call) error {
 	}
 
 	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
-	if call.Status == data.CallStatusInitiated && notify {
-		// when the first user other than the initiator joins the call,
-		// should notify the initiator that the call has been accepted
-		cu := call.GetByUserID(call.InitiatorID)
-		if cu != nil {
-			toUsers = append(toUsers, data.CallUser{UserID: cu.UserID, DeviceID: cu.DeviceID})
-		}
-		// change call status to 'active'
-		err = s.updateStatusAndSendMessage(call, data.CallStatusAccepted)
-		if err != nil {
-			return err
+	if call.Status == data.CallStatusInitiated {
+		cu := call.GetByUserID(ctx.UserID)
+		if cu.Status == data.CallUserStatusActive {
+			// when the first user other than the initiator joins the call,
+			// should notify the initiator that the call has been accepted
+			initiator := call.GetByUserID(call.InitiatorID)
+			if initiator != nil {
+				toUsers = append(toUsers, data.CallUser{UserID: initiator.UserID, DeviceID: initiator.DeviceID})
+			}
+			// change call status to 'active'
+			err = s.updateStatusAndSendMessage(call, data.CallStatusAccepted)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -90,6 +98,7 @@ func (s *groupCallService) Join(ctx *CallContext, call *data.Call) error {
 		// inform other devices to end the incoming call
 		// as it is already accepted on the current device
 		s.all.Informer.SendSignalToUser(ctx.UserID, CallDevices{
+			Message: "Joined from another deivce",
 			Devices: call.GetDevicesIDs(false),
 		})
 	} else {
@@ -149,7 +158,7 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 		drop = true
 	}
 
-	toUsers := []data.CallUser{{UserID: ctx.UserID, DeviceID: ctx.DeviceID}}
+	toUsers := []data.CallUser{}
 	if drop {
 		// notify all not disconnected users
 		toUsers, err = s.dao.CallUsers.GetNotDisconnectedCallUsers(call.ID)
@@ -163,6 +172,7 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 			return err
 		}
 	}
+	toUsers = append(toUsers, data.CallUser{UserID: ctx.UserID, DeviceID: ctx.DeviceID})
 
 	// notify the current user to end the call
 	s.all.Informer.SendSignalToCall(call, data.CallStatusDisconnected, toUsers...)
@@ -199,6 +209,10 @@ func (s *groupCallService) RefreshCallUsers(chatId int, users []int) error {
 func (s *groupCallService) dropNotAcceptedHandler(id int) {
 	call, err := s.dao.Calls.Get(id)
 	if err != nil {
+		return
+	}
+
+	if call.ID == 0 || call.Status > 900 {
 		return
 	}
 

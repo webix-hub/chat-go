@@ -169,16 +169,24 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 	}))
 	must(api.Dependencies.AddProvider(func(ctx context.Context) Call {
 		id, _ := ctx.Value("user_id").(int)
-		device, _ := ctx.Value("device_id").(int)
-		call, _ := db.Calls.GetByUser(id, device)
+		deviceId, _ := ctx.Value("device_id").(int)
+		call, _ := db.Calls.GetByUser(id)
 
 		var callName, callAvatar string
 		if call.IsGroupCall {
-			// if user disconnected from the call, then don't send call info
-			// but he can reconnect to this call manually (by clicking "Start call" button on the client side)
+			// if user disconnected from the call or connecting from another device, then don't send call info
+			// but he can reconnect to this call manually
 			for _, cu := range call.Users {
-				if cu.UserID == id && cu.DeviceID != 0 && cu.Status == data.CallUserStatusDisconnected {
-					return Call{}
+				if cu.UserID == id {
+					if cu.Status == data.CallUserStatusDisconnected {
+						return Call{}
+					}
+
+					if cu.DeviceID != deviceId {
+						return Call{}
+					}
+
+					break
 				}
 			}
 

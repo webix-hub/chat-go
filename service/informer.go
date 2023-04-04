@@ -8,7 +8,8 @@ import (
 )
 
 type CallDevices struct {
-	Devices []int `json:"devices"`
+	Devices []int  `json:"devices"`
+	Message string `json:"message"`
 }
 
 type Signal struct {

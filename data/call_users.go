@@ -67,7 +67,7 @@ func (cu *CallUsersDAO) GetCallUsers(callId int) ([]CallUser, error) {
 
 func (cu *CallUsersDAO) GetNotDisconnectedCallUsers(callId int) ([]CallUser, error) {
 	data := []CallUser{}
-	err := cu.db.Where("call_id = ? && status > ?", callId, CallUserStatusDisconnected).Find(&data).Error
+	err := cu.db.Where("call_id = ? AND status > ?", callId, CallUserStatusDisconnected).Find(&data).Error
 	return data, err
 }
 

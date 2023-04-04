@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"mkozhukh/chat/data"
 )
 
@@ -13,7 +14,19 @@ func newPersonalCallService(base baseCallService) *personalCallService {
 }
 
 func (s *personalCallService) Start(ctx *CallContext, targetChatId, targetUserId int) (*data.Call, error) {
-	c, err := s.precheckUserAccess(ctx, targetChatId, targetUserId)
+	err := s.checkUserAccess(targetChatId, ctx.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.checkForActiveCall(ctx, targetChatId, targetUserId)
+	if err != nil {
+		return nil, err
+	}
+
+	
+
+	c, err := s.checkUserBusy(ctx, targetChatId, targetUserId)
 	if err != nil {
 		return c, err
 	}
@@ -54,6 +67,7 @@ func (s *personalCallService) Join(ctx *CallContext, call *data.Call) error {
 		// inform other devices to end the incoming call
 		// as it is already accepted on the current device
 		s.all.Informer.SendSignalToUser(ctx.UserID, CallDevices{
+			Message: "Joined from another deivce",
 			Devices: call.GetDevicesIDs(false),
 		})
 	} else {
@@ -82,4 +96,22 @@ func (s *personalCallService) dropNotAcceptedHandler(id int) {
 		// notify all users to drop incoming call
 		s.all.Informer.SendSignalToCall(&call, data.CallStatusIgnored)
 	}
+}
+
+func (s *personalCallService) checkUserBusy(ctx *CallContext, toChatId, toUserId int) (*data.Call, error) {
+	call, err := s.dao.Calls.GetByUser(toUserId)
+	if err != nil {
+		return nil, err
+	}
+	if call.ID != 0 {
+		call := data.Call{
+			InitiatorID: ctx.UserID,
+			Status:      data.CallStatusBusy,
+			ChatID:      toChatId,
+		}
+		s.SendCallMessage(&call, data.CallBusyMessage)
+		return &call, errors.New("line is busy")
+	}
+
+	return nil, nil
 }

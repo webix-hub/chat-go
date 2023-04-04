@@ -95,38 +95,29 @@ func (s *baseCallService) StartCallTimer(duration, id int, cb func(id int)) {
 	})
 }
 
-func (s *baseCallService) precheckUserAccess(ctx *CallContext, targetChatId int, targetUserId int) (*data.Call, error) {
-	err := s.checkUserAccess(targetChatId, ctx.UserID)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int, targetUserId int) error {
 	// check if the current user is already in call
-	check, err := s.dao.Calls.CheckIfUserInCall(ctx.UserID)
+	call, err := s.dao.Calls.GetByUser(ctx.UserID)
 	if err != nil {
-		return nil, err
-	}
-	if check {
-		return nil, errors.New("already in the call")
+		return err
 	}
 
-	if targetUserId != 0 {
-		check, err := s.dao.Calls.CheckIfUserInCall(targetUserId)
-		if err != nil {
-			return nil, err
+	if call.ID != 0 {
+		cu := call.GetByUserID(ctx.UserID)
+		if cu == nil {
+			return errors.New("user not found in the call")
 		}
-		if check {
-			call := data.Call{
-				InitiatorID: ctx.UserID,
-				Status:      data.CallStatusBusy,
-				ChatID:      targetChatId,
-			}
-			s.SendCallMessage(&call, data.CallBusyMessage)
-			return &call, errors.New("line is busy")
+
+		if call.ChatID != targetChatId {
+			return errors.New("call is active in another chat")
+		}
+
+		if cu.DeviceID == ctx.DeviceID {
+			return errors.New("already in the call")
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (s *baseCallService) updateStatusAndSendMessage(call *data.Call, status int) error {
@@ -227,22 +218,21 @@ func (s *baseCallService) updateAcceptedCall(ctx *CallContext, call *data.Call) 
 		return false, data.ErrAccessDenied
 	}
 
-	if cu.Status == data.CallUserStatusActive {
-		return false, fmt.Errorf("already in the call")
-	}
-
 	userStatus := data.CallUserStatusConnecting
 	if cu.Status == data.CallUserStatusConnecting ||
 		call.Status == data.CallStatusInitiated && cu.Status == data.CallUserStatusInitiated {
 		userStatus = data.CallUserStatusActive
 	}
 
+	err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID, userStatus)
+
+	// join for the first time of from another device
+	notify := cu.DeviceID == 0 || cu.DeviceID != ctx.DeviceID
+
 	cu.Status = userStatus
 	cu.DeviceID = ctx.DeviceID
 
-	err := s.dao.CallUsers.UpdateUserDeviceID(call.ID, ctx.UserID, ctx.DeviceID, userStatus)
-
-	return cu.Status == data.CallUserStatusActive, err
+	return notify, err
 }
 
 func (s *baseCallService) end(c *data.Call) error {

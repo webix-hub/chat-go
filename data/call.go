@@ -75,13 +75,13 @@ func (d *CallsDAO) Get(id int) (Call, error) {
 	return c, err
 }
 
-func (d *CallsDAO) GetByUser(id, device int) (Call, error) {
+func (d *CallsDAO) GetByUser(id int) (Call, error) {
 	sql := "SELECT `c`.* FROM `calls` `c` " +
-		"JOIN `call_user` `cu` ON `c`.`id` = `cu`.`call_id` AND `cu`.`status` > ? AND (`cu`.`user_id` = ? AND (`cu`.`device_id` = ? OR `cu`.`device_id` = 0)) " +
+		"JOIN `call_user` `cu` ON `c`.`id` = `cu`.`call_id` AND `cu`.`status` > ? AND `cu`.`user_id` = ? " +
 		"WHERE `c`.`status` < 900"
 
 	c := Call{}
-	err := d.db.Raw(sql, CallUserStatusDisconnected, id, device).Scan(&c).Error
+	err := d.db.Raw(sql, CallUserStatusDisconnected, id).Scan(&c).Error
 	if err != nil {
 		if errors.Is(gorm.ErrRecordNotFound, err) {
 			err = nil
