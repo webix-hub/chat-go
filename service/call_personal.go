@@ -24,14 +24,23 @@ func (s *personalCallService) Start(ctx *CallContext, targetChatId, targetUserId
 		return nil, err
 	}
 
-	
+	// check if the chat is in active call
+	call, err := s.dao.Calls.CheckIfChatInCall(targetChatId)
+	if err != nil {
+		return nil, err
+	}
+	if call.ID != 0 {
+		// join the user to the existing call
+		err := s.Join(ctx, &call)
+		return &call, err
+	}
 
 	c, err := s.checkUserBusy(ctx, targetChatId, targetUserId)
 	if err != nil {
 		return c, err
 	}
 
-	call, err := s.dao.Calls.Start(ctx.UserID, ctx.DeviceID, targetUserId, targetChatId)
+	call, err = s.dao.Calls.Start(ctx.UserID, ctx.DeviceID, targetUserId, targetChatId)
 	if err != nil {
 		return nil, err
 	}
