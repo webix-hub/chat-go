@@ -95,6 +95,30 @@ func (s *baseCallService) StartCallTimer(duration, id int, cb func(id int)) {
 	})
 }
 
+func (s *baseCallService) DropAllCalls(status int) error {
+	calls, err := s.dao.Calls.DropAllCalls(status)
+	if err != nil {
+		return err
+	}
+
+	for i := range calls {
+		if s.LivekitEnabled && calls[i].RoomName != "" {
+			go s.all.Livekit.DeleteRoom(calls[i].RoomName)
+		}
+
+		msg := data.Message{
+			ChatID: calls[i].ChatID,
+			UserID: calls[i].InitiatorID,
+		}
+
+		s.setEndCallInfo(&calls[i], &msg)
+		s.all.Informer.SendSignalToCall(&calls[i], status)
+		s.all.Informer.SendMessageEvent(calls[i].ChatID, &msg, "", 0, true)
+	}
+
+	return nil
+}
+
 func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int, targetUserId int) error {
 	// check if the current user is already in call
 	call, err := s.dao.Calls.GetByUser(ctx.UserID)
@@ -109,11 +133,11 @@ func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int,
 		}
 
 		if call.ChatID != targetChatId {
-			return errors.New("#ERR_01") // call is active in another chat
+			return errActiveInOtherChat // call is active in another chat
 		}
 
 		if cu.DeviceID == ctx.DeviceID {
-			return errors.New("#ERR_02") // alreay in the call
+			return errAlreadyInCall // alreay in the call
 		}
 	}
 
@@ -154,13 +178,7 @@ func (s *baseCallService) updateStatusAndSendMessage(call *data.Call, status int
 
 	switch status {
 	case data.CallStatusDisconnected, data.CallStatusEnded, data.CallStatusLost:
-		var diff float64
-		if call.Start != nil {
-			diff = time.Since(*call.Start).Seconds()
-			msg.Date = *call.Start
-		}
-		msg.Text = fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff)%60)
-		msg.Type = data.CallStartMessage
+		s.setEndCallInfo(call, msg)
 	case data.CallStatusRejected:
 		msg.Type = data.CallRejectedMessage
 	case data.CallStatusIgnored:
@@ -233,6 +251,16 @@ func (s *baseCallService) updateAcceptedCall(ctx *CallContext, call *data.Call) 
 	cu.DeviceID = ctx.DeviceID
 
 	return notify, err
+}
+
+func (s *baseCallService) setEndCallInfo(call *data.Call, msg *data.Message) {
+	var diff float64
+	if call.Start != nil {
+		diff = time.Since(*call.Start).Seconds()
+		msg.Date = *call.Start
+	}
+	msg.Text = fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff)%60)
+	msg.Type = data.CallStartMessage
 }
 
 func (s *baseCallService) end(c *data.Call) error {

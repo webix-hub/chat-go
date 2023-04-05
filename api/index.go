@@ -134,6 +134,9 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 	must(api.AddVariable("chats", ChatList{}))
 	must(api.AddVariable("call", Call{}))
 
+	// drop all calls on server initialization
+	must(sAll.Calls.DropAllCalls(data.CallStatusLost))
+
 	handleDependencies(api, db)
 	return api
 }
@@ -174,10 +177,10 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 
 		if call.ID != 0 {
 			cu := call.GetByUserID(id)
-			if cu == nil ||
+			if cu.DeviceID != 0 && cu == nil ||
 				cu.Status == data.CallUserStatusDisconnected ||
 				cu.DeviceID != deviceId {
-				// if the user is disconnected from the call or connecting from another device, 
+				// if the user is disconnected from the call or connecting from another device,
 				// then don't send call info
 				// but the user can reconnect to the call manually
 				return Call{}

@@ -177,6 +177,35 @@ func (d *CallsDAO) CheckIfUserInCall(userId int) (bool, error) {
 	return check.ID != 0, err
 }
 
+func (d *CallsDAO) DropAllCalls(status int) ([]Call, error) {
+	calls := make([]Call, 0)
+	err := d.db.Find(&calls, "status IN (?)", []int{CallStatusActive, CallStatusInitiated}).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if len(calls) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]int, len(calls))
+	for i := range calls {
+		err = d.dao.CallUsers.EndCall(calls[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		ids[i] = calls[i].ID
+	}
+
+	err = d.db.
+		Model(&Call{}).
+		Where("id IN (?)", ids).
+		Update("status", status).
+		Error
+
+	return calls, err
+}
+
 func (d *CallsDAO) initCallUsers(call *Call, initiatorDeviceId int) error {
 	chatusers, err := d.dao.UserChats.ByChat(call.ChatID)
 	if err != nil {
