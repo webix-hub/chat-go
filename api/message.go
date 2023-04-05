@@ -65,6 +65,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, deviceId Dev
 	}
 
 	msg.Text = safeHTML(text)
+	msg.Edited = true
 
 	ch, err := m.db.Chats.GetOne(msg.ChatID)
 	if err != nil {

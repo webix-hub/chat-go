@@ -34,6 +34,7 @@ type Message struct {
 	ID        int              `gorm:"primary_key" json:"id"`
 	Text      string           `gorm:"type:text" json:"text"`
 	Date      time.Time        `gorm:"default:CURRENT_TIMESTAMP" json:"date"`
+	Edited    bool             `json:"edited"`
 	ChatID    int              `json:"chat_id"`
 	UserID    int              `json:"user_id"`
 	Type      int              `json:"type"`
@@ -93,7 +94,6 @@ func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 }
 
 func (d *MessagesDAO) Save(m *Message) error {
-	m.Date = time.Now()
 	err := d.db.Save(&m).Error
 	logError(err)
 
