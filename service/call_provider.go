@@ -1,6 +1,15 @@
 package service
 
-import "mkozhukh/chat/data"
+import (
+	"errors"
+	"mkozhukh/chat/data"
+)
+
+var (
+	errActiveInOtherChat = errors.New("#ERR_01")
+	errAlreadyInCall     = errors.New("#ERR_02")
+	errLineIsBusy        = errors.New("#ERR_03")
+)
 
 type ICallService interface {
 	Start(ctx *CallContext, targetChatId, targetUserId int) (*data.Call, error)

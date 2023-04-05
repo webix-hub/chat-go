@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"mkozhukh/chat/data"
 	"time"
 )
@@ -113,7 +112,8 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 		return data.ErrFeatureDisabled
 	}
 	if call.Status > 900 {
-		return fmt.Errorf("call already ended")
+		s.all.Informer.SendSignalToCall(call, data.CallStatusDisconnected, data.CallUser{UserID: ctx.UserID})
+		return nil
 	}
 
 	if call.Status == data.CallStatusInitiated && call.InitiatorID == ctx.UserID {

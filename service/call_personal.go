@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"mkozhukh/chat/data"
 )
 
@@ -119,7 +118,7 @@ func (s *personalCallService) checkUserBusy(ctx *CallContext, toChatId, toUserId
 			ChatID:      toChatId,
 		}
 		s.SendCallMessage(&call, data.CallBusyMessage)
-		return &call, errors.New("line is busy")
+		return &call, errLineIsBusy
 	}
 
 	return nil, nil
