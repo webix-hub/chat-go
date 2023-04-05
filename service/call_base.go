@@ -109,11 +109,11 @@ func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int,
 		}
 
 		if call.ChatID != targetChatId {
-			return errors.New("call is active in another chat")
+			return errors.New("#ERR_01") // call is active in another chat
 		}
 
 		if cu.DeviceID == ctx.DeviceID {
-			return errors.New("already in the call")
+			return errors.New("#ERR_02") // alreay in the call
 		}
 	}
 
