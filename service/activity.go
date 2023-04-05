@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"mkozhukh/chat/data"
 	"time"
 )
@@ -52,14 +51,14 @@ func (s *usersActivityService) checkOfflineUsers() {
 				s.all.Calls.updateStatusAndSendMessage(&c, data.CallStatusLost)
 				s.all.Informer.SendSignalToCall(&c, data.CallStatusLost)
 			} else {
-				// drop the call only for the disconnected user
-				// for _, u := range c.Users {
-				// 	if u.DeviceID == key {
-				// 		s.dao.CallUsers.UpdateUserConnState(c.ID, u.UserID, data.CallUserStatusDisconnected)
-				// 		s.all.Informer.SendSignalToCall(&c, data.CallStatusLost, u)
-				// 		break
-				// 	}
-				// }
+				for _, u := range c.Users {
+					if u.DeviceID == key {
+						// drop the call
+						s.dao.CallUsers.UpdateUserConnState(c.ID, u.UserID, data.CallUserStatusDisconnected)
+						s.all.Informer.SendSignalToCall(&c, data.CallStatusLost, u)
+						break
+					}
+				}
 			}
 
 			delete(s.offlineDevices, key)
