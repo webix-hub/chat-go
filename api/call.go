@@ -24,7 +24,10 @@ type CallsAPI struct {
 }
 
 func (d *CallsAPI) Start(targetUserId int, targetChatId int, ctx *service.CallContext) (*Call, error) {
-	callService := service.CallProvider.GetService(targetUserId == 0)
+	callService, err := service.CallProvider.GetService(targetUserId == 0)
+	if err != nil {
+		return nil, err
+	}
 
 	call, err := callService.Start(ctx, targetChatId, targetUserId)
 	if err != nil {
@@ -47,8 +50,11 @@ func (d *CallsAPI) SetStatus(id, status int, ctx *service.CallContext) (int, err
 		return 0, err
 	}
 
-	callService := service.CallProvider.GetService(call.IsGroupCall)
-
+	callService, err := service.CallProvider.GetService(call.IsGroupCall)
+	if err != nil {
+		return 0, err
+	}
+	
 	if status == data.CallStatusAccepted {
 		err = callService.Join(ctx, &call)
 	}

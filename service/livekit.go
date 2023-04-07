@@ -10,6 +10,7 @@ import (
 )
 
 type LivekitConfig struct {
+	Enabled   bool
 	Host      string
 	ApiKey    string
 	ApiSecret string
@@ -22,7 +23,7 @@ type livekitService struct {
 }
 
 func newLivekitService(cfg LivekitConfig) *livekitService {
-	if cfg.Host == "" {
+	if !cfg.Enabled {
 		return nil
 	}
 

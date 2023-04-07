@@ -31,11 +31,9 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 		WebSocket: true,
 	})
 
-	// var livekit *LivekitService
-	// if features.WithGroupCalls {
-	// 	livekit = newLivekitService(livekitConfig)
-	// }
-	// service := newCallService(db.Calls, db.CallUsers, db.Messages, db.Chats, db.UserChats, api.Events, livekit)
+	if data.Features.WithGroupCalls && !lkConfig.Enabled {
+		data.Features.WithGroupCalls = false
+	}
 
 	sAll := service.NewService(db, api.Events, lkConfig)
 

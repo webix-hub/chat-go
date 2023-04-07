@@ -29,9 +29,12 @@ type CallServiceProvider struct {
 
 var CallProvider *CallServiceProvider
 
-func (p *CallServiceProvider) GetService(group bool) ICallService {
+func (p *CallServiceProvider) GetService(group bool) (ICallService, error) {
 	if group {
-		return p.group
+		if !data.Features.WithGroupCalls {
+			return nil, data.ErrFeatureDisabled
+		}
+		return p.group, nil
 	}
-	return p.personal
+	return p.personal, nil
 }

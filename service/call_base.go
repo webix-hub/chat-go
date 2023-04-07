@@ -53,7 +53,7 @@ func (s *baseCallService) StartReconnectingTimer(ctx *CallContext, callId int) {
 		u := call.GetByUserID(ctx.UserID)
 		if u != nil && u.Status == data.CallUserStatusConnecting {
 			// drop call if the user's reconnecting timed out
-			callService := CallProvider.GetService(call.IsGroupCall)
+			callService, _ := CallProvider.GetService(call.IsGroupCall)
 			callService.Disconnect(ctx, &call, data.CallStatusDisconnected)
 		}
 	})
