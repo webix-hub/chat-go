@@ -175,10 +175,10 @@ func handleDependencies(api *remote.Server, db *data.DAO) {
 
 		if call.ID != 0 {
 			cu := call.GetByUserID(id)
-			if cu.DeviceID != 0 && cu == nil ||
-				cu.Status == data.CallUserStatusDisconnected ||
-				cu.DeviceID != deviceId {
-				// if the user is disconnected from the call or connecting from another device,
+			if cu == nil ||
+				cu.DeviceID != 0 && cu.DeviceID != deviceId ||
+				cu.Status == data.CallUserStatusDisconnected {
+				// if the user is connecting from another device or has disconnected status,
 				// then don't send call info
 				// but the user can reconnect to the call manually
 				return Call{}
