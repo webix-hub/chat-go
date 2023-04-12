@@ -220,6 +220,7 @@ func (s *groupCallService) dropNotAcceptedHandler(id int) {
 	notAcceptedUsers := make([]data.CallUser, 0)
 	for _, u := range call.Users {
 		if u.Status == data.CallUserStatusInitiated && u.DeviceID == 0 {
+			s.dao.CallUsers.UpdateUserConnState(call.ID, u.UserID, data.CallUserStatusDisconnected)
 			notAcceptedUsers = append(notAcceptedUsers, u)
 		}
 	}
