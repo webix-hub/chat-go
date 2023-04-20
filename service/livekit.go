@@ -49,6 +49,34 @@ func (s *livekitService) DeleteRoom(name string) error {
 	return err
 }
 
+func (s *livekitService) DisconnectParticipant(roomName, userId string) error {
+	res, _ := s.lksClient.ListParticipants(context.Background(), &livekit.ListParticipantsRequest{
+		Room: roomName,
+	})
+
+	found := false
+	for i := range res.Participants {
+		if res.Participants[i].Identity == userId {
+			if res.Participants[i].State == livekit.ParticipantInfo_DISCONNECTED {
+				return nil
+			}
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	_, err := s.lksClient.RemoveParticipant(context.Background(), &livekit.RoomParticipantIdentity{
+		Room:     roomName,
+		Identity: userId,
+	})
+
+	return err
+}
+
 func (s *livekitService) CreateJoinToken(roomName, userId string) (string, error) {
 	at := auth.NewAccessToken(s.APIKey, s.APISercret)
 	grant := &auth.VideoGrant{

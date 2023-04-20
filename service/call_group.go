@@ -178,6 +178,9 @@ func (s *groupCallService) Disconnect(ctx *CallContext, call *data.Call, status 
 	// notify the current user to end the call
 	s.all.Informer.SendSignalToCall(call, data.CallStatusDisconnected, toUsers...)
 
+	// remove participant from the room
+	go s.all.Livekit.DisconnectParticipant(call.RoomName, fmt.Sprint(ctx.UserID))
+
 	return err
 }
 

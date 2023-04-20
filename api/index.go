@@ -86,9 +86,10 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 	})
 
 	api.Events.UserHandler = func(u *remote.UserChange) {
-		status := data.StatusOffline
-		if u.Status {
-			status = data.StatusOnline
+		status := data.StatusOnline
+		if !u.Status {
+			status = data.StatusOffline
+			go sAll.Calls.DisconnectUser(u.ID, u.Connection)
 		}
 		go (func() {
 			api.Events.Publish("users", UserEvent{Op: "online", UserID: u.ID, Data: status})
@@ -97,9 +98,10 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 	}
 
 	api.Events.ConnHandler = func(u *remote.UserChange) {
-		status := data.StatusOffline
-		if u.Status {
-			status = data.StatusOnline
+		status := data.StatusOnline
+		if !u.Status {
+			status = data.StatusOffline
+			go sAll.Calls.DisconnectUser(u.ID, u.Connection)
 		}
 		go sAll.UsersActivity.ChangeOnlineStatus(u.Connection, status)
 	}

@@ -119,6 +119,33 @@ func (s *baseCallService) DropAllCalls(status int) error {
 	return nil
 }
 
+func (s *baseCallService) DisconnectUser(id, deviceId int) error {
+	call, err := s.dao.Calls.GetByDevice(deviceId)
+	if err != nil {
+		return err
+	}
+
+	if call.ID == 0 {
+		return nil
+	}
+
+	service, err := CallProvider.GetService(call.IsGroupCall)
+	if err != nil {
+		return err
+	}
+
+	callCtx := CallContext{
+		UserID:   id,
+		DeviceID: deviceId,
+	}
+	err = service.Disconnect(&callCtx, &call, data.CallUserStatusDisconnected)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int, targetUserId int) error {
 	// check if the current user is already in call
 	call, err := s.dao.Calls.GetByUser(ctx.UserID)
