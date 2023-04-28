@@ -2,8 +2,7 @@ version: "3"
 services:
   worker:
     build: .
-    networks:
-      - app
+    image: "registry.webix.io/chat-go"
     restart: always
     ports:
       - 3000:80
@@ -18,12 +17,17 @@ services:
       APP_DB_PASSWORD: 1
       APP_DB_HOST: appdb
       APP_DB_DATABASE: data
+      APP_FEATURES_WITHREACTIONS: "true"
+      APP_FEATURES_WITHFILES: "true"
+      APP_FEATURES_WITHGROUPCALLS: "true"
+      APP_LIVEKIT_ENABLED: "true"
+      APP_LIVEKIT_HOST: "http://livekit:7880"
+      APP_LIVEKIT_APIKEY: demo
+      APP_LIVEKIT_APISECRET: ol9385c0c9h237850h283549h2305823gfm
     links:
       - db:appdb
 
   db:
-    networks:
-      - app
     restart: always
     image: mysql:8.0
     volumes:
@@ -32,9 +36,28 @@ services:
       - "MYSQL_ROOT_PASSWORD=1"
       - "MYSQL_DATABASE=data"
 
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yml --node-ip 192.168.1.15 --dev
+    restart: unless-stopped
+    ports:
+      - 7880:7880
+      - 7881:7881
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./livekit.config.yml:/etc/livekit.yml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.livekit.entrypoints=web,websecure"
+      - "traefik.http.routers.livekit.rule=Host(`livekit.****.****)"
+      - "traefik.http.routers.livekit.tls=true"
+      - "traefik.http.routers.livekit.tls.domains[0].main=livekit.****.****"
+      - "traefik.http.routers.livekit.tls.domains[0].sans=livekit-*.****.****"
+      - "traefik.http.services.livekit.loadbalancer.server.port=7880"
+      - "traefik.docker.network=proxy"
+
 volumes:
   data:
   cache:
 
-networks:
-  app:
