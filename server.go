@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -210,9 +211,9 @@ func main() {
 	log.Println(err.Error())
 }
 
-var dID = 0
+var dID = time.Now().Unix()
 
-func newDeviceID() int {
+func newDeviceID() int64 {
 	dID += 1
 	return dID
 }

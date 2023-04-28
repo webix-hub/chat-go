@@ -15,7 +15,7 @@ type MessagesAPI struct {
 
 func (m *MessagesAPI) GetAll(chatId int, userId UserID) ([]data.Message, error) {
 	if !m.db.UsersCache.HasChat(int(userId), chatId) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	return m.db.Messages.GetAll(chatId)
@@ -23,7 +23,7 @@ func (m *MessagesAPI) GetAll(chatId int, userId UserID) ([]data.Message, error) 
 
 func (m *MessagesAPI) ResetCounter(chatId int, userId UserID) error {
 	if !m.db.UsersCache.HasChat(int(userId), chatId) {
-		return AccessDeniedError
+		return data.ErrAccessDenied
 	}
 
 	err := m.db.UserChats.ResetCounter(chatId, int(userId))
@@ -36,7 +36,7 @@ func (m *MessagesAPI) ResetCounter(chatId int, userId UserID) error {
 
 func (m *MessagesAPI) Add(text string, chatId int, origin string, userId UserID, deviceId DeviceID, events *remote.Hub) (*data.Message, error) {
 	if !m.db.UsersCache.HasChat(int(userId), chatId) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	msg := data.Message{
@@ -61,7 +61,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, deviceId Dev
 	}
 
 	if msg.UserID != int(userId) || !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	msg.Text = safeHTML(text)
@@ -97,7 +97,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 	}
 
 	if msg.UserID != int(userId) || !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
-		return AccessDeniedError
+		return data.ErrAccessDenied
 	}
 
 	err = m.db.Messages.Delete(msgID)
@@ -117,6 +117,9 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 
 	if ch.LastMessage == msg.ID {
 		msg, err = m.db.Chats.SetLastMessage(msg.ChatID, nil)
+		if err != nil {
+			return err
+		}
 		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: 0, Date: &msg.Date}, UserId: 0})
 	}
 
@@ -136,7 +139,7 @@ func (m *MessagesAPI) AddReaction(msgID int, reaction string, userId UserID, dev
 		return nil, errors.New("cannot add a reaction to own message")
 	}
 	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	v := data.Reaction{
@@ -165,7 +168,7 @@ func (m *MessagesAPI) RemoveReaction(msgID int, reaction string, userId UserID, 
 		return nil, err
 	}
 	if !m.db.UsersCache.HasChat(int(userId), msg.ChatID) {
-		return nil, AccessDeniedError
+		return nil, data.ErrAccessDenied
 	}
 
 	r := data.Reaction{

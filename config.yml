@@ -12,6 +12,7 @@ features:
   withfiles: true
   withgroupcalls: true
 livekit:
-  host: "http://localhost:7880"
-  apikey: devkey
-  apisecret: secret
+  enabled: true
+  host: "https://livekit.webix.io"
+  apikey: demo
+  apisecret: ol9385c0c9h237850h283549h2305823

@@ -9,6 +9,7 @@ import (
 )
 
 var Debug = 1
+var Features FeaturesConfig
 
 func logError(e error) {
 	if e != nil && Debug > 0 {
@@ -43,10 +44,12 @@ func NewDAO(db *gorm.DB, config FeaturesConfig) *DAO {
 		db.LogMode(true)
 	}
 
+	Features = config
+
 	d.db = db
 	d.Users = NewUsersDAO(&d, db)
 	d.Chats = NewChatsDAO(&d, db)
-	d.Messages = NewMessagesDAO(&d, db, config)
+	d.Messages = NewMessagesDAO(&d, db)
 	d.UserChats = NewUserChatsDAO(&d, db)
 	d.Calls = NewCallsDAO(&d, db)
 	d.CallUsers = NewCallUsersDAO(db)
