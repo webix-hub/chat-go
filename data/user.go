@@ -21,7 +21,7 @@ type User struct {
 	Name   string `json:"name"`
 	Email  string `json:"email"`
 	Avatar string `json:"avatar"`
-	UID    string `json:-`
+	UID    string `json:"-"`
 	Status int    `json:"status"`
 }
 

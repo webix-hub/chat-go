@@ -3,3 +3,4 @@ chat
 storage
 db.sqlite
 application*
+__debug_bin

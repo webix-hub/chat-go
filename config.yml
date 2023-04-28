@@ -10,3 +10,8 @@ db:
 features:
   withreactions: true
   withfiles: true
+  withgroupcalls: true
+livekit:
+  host: "http://localhost:7880"
+  apikey: devkey
+  apisecret: secret

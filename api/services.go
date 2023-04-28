@@ -7,26 +7,42 @@ import (
 	"mkozhukh/chat/data"
 	"time"
 
+	gonanoid "github.com/matoous/go-nanoid"
 	remote "github.com/mkozhukh/go-remote"
 )
 
 type CallService struct {
 	cDAO   data.CallsDAO
+	cuDAO  data.CallUsersDAO
 	mDAO   data.MessagesDAO
 	chDAO  data.ChatsDAO
 	uchDAO data.UserChatsDAO
 	hub    *remote.Hub
 
+	withLivekit bool
+	livekit     *LivekitService
+
 	offlineDevices map[int]time.Time
 }
 
-func newCallService(cdao data.CallsDAO, mdao data.MessagesDAO, chdao data.ChatsDAO, uchdao data.UserChatsDAO, hub *remote.Hub) *CallService {
+func newCallService(
+	cdao data.CallsDAO,
+	cudao data.CallUsersDAO,
+	mdao data.MessagesDAO,
+	chdao data.ChatsDAO,
+	uchdao data.UserChatsDAO,
+	hub *remote.Hub,
+	livekit *LivekitService,
+) *CallService {
 	d := CallService{
 		cDAO:           cdao,
+		cuDAO:          cudao,
 		mDAO:           mdao,
 		chDAO:          chdao,
 		uchDAO:         uchdao,
 		hub:            hub,
+		livekit:        livekit,
+		withLivekit:    livekit != nil,
 		offlineDevices: make(map[int]time.Time),
 	}
 	go d.runCheckOfflineUsers()
@@ -87,18 +103,35 @@ func (d *CallService) checkOfflineUsers() {
 		}
 	}
 }
-func (d *CallService) sendEvent(c *data.Call) {
+
+func (d *CallService) sendEvent(c *data.Call, to ...data.CallUser) {
 	msg, _ := json.Marshal(&Call{
-		ID:     c.ID,
-		Status: c.Status,
-		Start:  c.Start,
-		Users:  []int{c.FromUserID, c.ToUserID},
+		ID:          c.ID,
+		Status:      c.Status,
+		Start:       c.Start,
+		InitiatorID: c.InitiatorID,
+		IsGroupCall: c.IsGroupCall,
+		ChatID:      c.ChatID,
+		Users:       c.GetUsersIDs(),
 	})
+
+	var devices []int
+	var users []int
+	if to != nil {
+		for _, cu := range to {
+			devices = append(devices, cu.DeviceID)
+			users = append(users, cu.UserID)
+		}
+	} else {
+		devices = c.GetDevicesIDs()
+		users = c.GetUsersIDs()
+	}
+
 	d.hub.Publish("signal", Signal{
 		Type:    "connect",
 		Message: string(msg),
-		Users:   []int{c.FromUserID, c.ToUserID},
-		Devices: []int{c.FromDeviceID, c.ToDeviceID},
+		Users:   users,
+		Devices: devices,
 	})
 }
 
@@ -112,19 +145,28 @@ func (d *CallService) broadcastToUserDevices(targetUser int, payload interface{}
 	})
 }
 
-func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
-	err := d.cDAO.Update(c, status)
+func (d *CallService) callStatusUpdate(c *data.Call, status int) (err error) {
+	defer func() {
+		if status > 900 {
+			e := d.endCall(c)
+			if err == nil {
+				err = e
+			}
+		}
+	}()
+
+	err = d.cDAO.Update(c, status)
 	if err != nil {
 		return err
 	}
 
 	if (status == data.CallStatusEnded || status == data.CallStatusLost) && c.ChatID != 0 {
-		diff := time.Now().Sub(*c.Start).Seconds()
+		diff := time.Since(*c.Start).Seconds()
 		msg := &data.Message{
 			Date:   *c.Start,
 			Text:   fmt.Sprintf("%02d:%02d", int(math.Floor(diff/60)), int(diff)%60),
 			ChatID: c.ChatID,
-			UserID: c.FromUserID,
+			UserID: c.InitiatorID,
 			Type:   data.CallStartMessage,
 		}
 		err = d.mDAO.SaveAndSend(c.ChatID, msg, "", 0)
@@ -141,7 +183,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 		msg := &data.Message{
 			Text:   "",
 			ChatID: c.ChatID,
-			UserID: c.FromUserID,
+			UserID: c.InitiatorID,
 			Type:   data.CallMissedMessage,
 		}
 
@@ -157,7 +199,7 @@ func (d *CallService) callStatusUpdate(c *data.Call, status int) error {
 func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) error {
 	d.hub.Publish("messages", data.MessageEvent{Op: "add", Msg: msg})
 
-	err = d.uchDAO.IncrementCounter(c.ChatID, int(c.FromUserID))
+	err = d.uchDAO.IncrementCounter(c.ChatID, int(c.InitiatorID))
 	if err != nil {
 		return err
 	}
@@ -170,12 +212,32 @@ func (d *CallService) sendMessage(c *data.Call, msg *data.Message, err error) er
 	return nil
 }
 
+func (d *CallService) createRoom(c *data.Call) error {
+	c.RoomName, _ = gonanoid.ID(16)
+	err := d.cDAO.Save(c)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.livekit.CreateRoom(c.RoomName)
+	if err != nil {
+		c.Status = data.CallStatusLost
+		d.cDAO.Save(c)
+	}
+
+	return err
+}
+
 func (d *CallService) RejectCall(c *data.Call) error {
+	return d.RejectCallWithMessage(c, data.CallRejectedMessage)
+}
+
+func (d *CallService) RejectCallWithMessage(c *data.Call, msgType int) error {
 	msg := &data.Message{
 		Text:   "",
 		ChatID: c.ChatID,
-		UserID: c.FromUserID,
-		Type:   data.CallRejectedMessage,
+		UserID: c.InitiatorID,
+		Type:   msgType,
 	}
 	err := d.mDAO.Save(msg)
 	if err != nil {
@@ -188,4 +250,27 @@ func (d *CallService) RejectCall(c *data.Call) error {
 	}
 
 	return nil
+}
+
+func (d *CallService) UpdateCallUsers(c *data.Call, users []int) error {
+	_, deleted, err := d.cDAO.UpdateCallUsers(c, users)
+	if err != nil {
+		return err
+	}
+
+	if len(deleted) > 0 {
+		// notify call participants to disconnect users that where deleted from the chat
+		c.Status = data.CallStatusDisconnected
+		d.sendEvent(c, deleted...)
+	}
+
+	return nil
+}
+
+func (d *CallService) endCall(c *data.Call) error {
+	if d.withLivekit {
+		// should delete room as the call has been ended
+		go d.livekit.DeleteRoom(c.RoomName)
+	}
+	return d.cuDAO.EndCall(c.ID)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"mkozhukh/chat/api"
 	"mkozhukh/chat/data"
 
 	"github.com/jinzhu/configor"
@@ -26,6 +27,7 @@ type AppConfig struct {
 		Path     string //sqlite
 	}
 	Features data.FeaturesConfig
+	Livekit  api.LivekitConfig
 }
 
 //LoadFromFile method loads and parses config file

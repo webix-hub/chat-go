@@ -7,7 +7,8 @@ import (
 )
 
 type ChatsAPI struct {
-	db *data.DAO
+	db    *data.DAO
+	sCall *CallService
 }
 
 type ChatEvent struct {
@@ -80,10 +81,22 @@ func (d *ChatsAPI) SetUsers(chatId int, users []int, userId UserID, events *remo
 	}
 
 	oldUsers := d.db.UsersCache.GetUsers(chatId)
-
-	chatId, err := d.db.Chats.SetUsers(chatId, append(users, int(userId)))
+	updUsers := append(users, int(userId))
+	chatId, err := d.db.Chats.SetUsers(chatId, updUsers)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.sCall.withLivekit {
+		c, err := d.db.Calls.CheckIfChatInCall(chatId)
+		if err != nil {
+			return nil, err
+		}
+		// update call users
+		err = d.sCall.UpdateCallUsers(&c, updUsers)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return d.getChatInfo(chatId, int(userId), events, oldUsers)
@@ -99,6 +112,18 @@ func (d *ChatsAPI) Leave(chatId int, userId UserID, events *remote.Hub) error {
 	err := d.db.Chats.Leave(chatId, int(userId))
 	if err != nil {
 		return err
+	}
+
+	if d.sCall.withLivekit {
+		c, err := d.db.Calls.CheckIfChatInCall(chatId)
+		if err != nil {
+			return err
+		}
+		if c.ID != 0 {
+			c.Status = data.CallStatusDisconnected
+			// notify to disconnect user
+			d.sCall.sendEvent(&c, data.CallUser{UserID: int(userId)})
+		}
 	}
 
 	info, err := d.db.UserChats.GetOneLeaved(chatId)
