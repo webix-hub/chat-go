@@ -119,31 +119,23 @@ func (s *baseCallService) DropAllCalls(status int) error {
 	return nil
 }
 
-func (s *baseCallService) DisconnectUser(id, deviceId int) error {
-	call, err := s.dao.Calls.GetByDevice(deviceId)
-	if err != nil {
+func (s *baseCallService) SetReconnectingStaus(ctx *CallContext) error {
+	call, err := s.dao.Calls.GetByDevice(ctx.DeviceID)
+	if err != nil || call.ID == 0 || call.Status > 900 {
 		return err
 	}
 
-	if call.ID == 0 {
-		return nil
-	}
-
-	service, err := CallProvider.GetService(call.IsGroupCall)
-	if err != nil {
+	user := call.GetByUserID(ctx.UserID)
+	if user == nil || user.Status == data.CallUserStatusConnecting {
 		return err
 	}
 
-	callCtx := CallContext{
-		UserID:   id,
-		DeviceID: deviceId,
-	}
-	err = service.Disconnect(&callCtx, &call, data.CallUserStatusDisconnected)
-	if err != nil {
-		return err
+	err = s.dao.CallUsers.UpdateUserConnState(ctx.UserID, ctx.UserID, data.CallUserStatusConnecting)
+	if err == nil {
+		s.StartReconnectingTimer(ctx, ctx.UserID)
 	}
 
-	return nil
+	return err
 }
 
 func (s *baseCallService) checkForActiveCall(ctx *CallContext, targetChatId int, targetUserId int) error {
