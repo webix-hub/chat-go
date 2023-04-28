@@ -1,4 +1,5 @@
-FROM centurylink/ca-certs
+FROM alpine:latest
+
 WORKDIR /app
 COPY ./chat /app
 COPY ./demodata /app/demodata

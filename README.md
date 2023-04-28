@@ -48,6 +48,11 @@ go build
 ./chat
 ```
 
+### group calls
+
+To organize group calls, service uses [livekit library](https://livekit.io/). So, to have this feature you need to deploy the instance of livekit on your infrastructure. It can be done through docker ( check the docker-compose.yml ) or as a standalone software ( check instructions at https://livekit.io )
+
+
 #### Other ways of configuration
 
 Configuration can be done through config.yml file or through env vars

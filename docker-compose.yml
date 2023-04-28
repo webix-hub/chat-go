@@ -21,9 +21,9 @@ services:
       APP_FEATURES_WITHFILES: "true"
       APP_FEATURES_WITHGROUPCALLS: "true"
       APP_LIVEKIT_ENABLED: "true"
-      APP_LIVEKIT_HOST: "http://livekit:7880"
+      APP_LIVEKIT_HOST: "https://livekit.webix.io"
       APP_LIVEKIT_APIKEY: demo
-      APP_LIVEKIT_APISECRET: ol9385c0c9h237850h283549h2305823gfm
+      APP_LIVEKIT_APISECRET: ol9385c0c9h237850h283549h2305823
     links:
       - db:appdb
 
@@ -38,7 +38,7 @@ services:
 
   livekit:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit.yml --node-ip 192.168.1.15 --dev
+    command: --config /etc/livekit.yml --node-ip 192.168.1.15
     restart: unless-stopped
     ports:
       - 7880:7880
@@ -47,15 +47,6 @@ services:
       - no-new-privileges:true
     volumes:
       - ./livekit.config.yml:/etc/livekit.yml:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.livekit.entrypoints=web,websecure"
-      - "traefik.http.routers.livekit.rule=Host(`livekit.****.****)"
-      - "traefik.http.routers.livekit.tls=true"
-      - "traefik.http.routers.livekit.tls.domains[0].main=livekit.****.****"
-      - "traefik.http.routers.livekit.tls.domains[0].sans=livekit-*.****.****"
-      - "traefik.http.services.livekit.loadbalancer.server.port=7880"
-      - "traefik.docker.network=proxy"
 
 volumes:
   data:

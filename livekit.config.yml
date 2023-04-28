@@ -5,6 +5,6 @@ rtc:
   port_range_end: 60000
   tcp_port: 7881
   use_external_ip: false
-  keys:
-    demo: ol9385c0c9h237850h283549h2305823
+keys:
+  demo: ol9385c0c9h237850h283549h2305823
 
