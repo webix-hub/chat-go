@@ -16,7 +16,7 @@ func init() {
 	JWTPublicKey = []byte(JWTPrivateKey)[32:]
 }
 
-func createUserToken(id int, device int) ([]byte, error) {
+func createUserToken(id int, device int64) ([]byte, error) {
 	var claims jwt.Claims
 	claims.Subject = "user"
 	claims.Issued = jwt.NewNumericTime(time.Now().Round(time.Second))

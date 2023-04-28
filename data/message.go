@@ -15,9 +15,8 @@ const (
 )
 
 type MessagesDAO struct {
-	dao    *DAO
-	db     *gorm.DB
-	config FeaturesConfig
+	dao *DAO
+	db  *gorm.DB
 }
 
 type MessageEvent struct {
@@ -27,8 +26,8 @@ type MessageEvent struct {
 	From   int
 }
 
-func NewMessagesDAO(dao *DAO, db *gorm.DB, config FeaturesConfig) MessagesDAO {
-	return MessagesDAO{dao, db, config}
+func NewMessagesDAO(dao *DAO, db *gorm.DB) MessagesDAO {
+	return MessagesDAO{dao, db}
 }
 
 type Message struct {
@@ -51,7 +50,7 @@ func (d *MessagesDAO) GetOne(msgID int) (*Message, error) {
 		return nil, err
 	}
 
-	if d.config.WithReactions {
+	if Features.WithReactions {
 		t.Reactions, err = d.dao.Reactions.GetAllForMessage(msgID)
 	}
 
@@ -66,7 +65,7 @@ func (d *MessagesDAO) GetLast(chatId int) (*Message, error) {
 		return nil, err
 	}
 
-	if d.config.WithReactions {
+	if Features.WithReactions {
 		t.Reactions, err = d.dao.Reactions.GetAllForMessage(t.ID)
 		logError(err)
 	}
@@ -82,7 +81,7 @@ func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 		return nil, err
 	}
 
-	if d.config.WithReactions {
+	if Features.WithReactions {
 		reactions, err := d.dao.Reactions.GetAllForChat(chatID)
 		if err != nil {
 			return nil, err
