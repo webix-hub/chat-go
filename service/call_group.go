@@ -223,10 +223,26 @@ func (s *groupCallService) dropNotAcceptedHandler(id int) {
 	notAcceptedUsers := make([]data.CallUser, 0)
 	for _, u := range call.Users {
 		if u.Status == data.CallUserStatusInitiated && u.DeviceID == 0 {
+			// select only users who not accepted initiated call
 			s.dao.CallUsers.UpdateUserConnState(call.ID, u.UserID, data.CallUserStatusDisconnected)
 			notAcceptedUsers = append(notAcceptedUsers, u)
 		}
 	}
+
+	if call.Status == data.CallStatusInitiated {
+		// the call not accepted yet
+		u := call.GetByUserID(call.InitiatorID)
+		if u == nil {
+			return
+		}
+
+		callCtx := CallContext{
+			UserID:   u.UserID,
+			DeviceID: u.DeviceID,
+		}
+		s.Disconnect(&callCtx, &call, data.CallStatusDisconnected)
+	}
+
 	// notify users who not accepted the call to drop it
 	s.all.Informer.SendSignalToCall(&call, data.CallStatusIgnored, notAcceptedUsers...)
 }
