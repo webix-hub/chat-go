@@ -9,6 +9,7 @@ steps:
     GOPROXY: https://goproxy.webix.io
   commands:
     - CGO_ENABLED=0 GOARCH=386 go build .
+    - echo "${DRONE_BRANCH}" | sed 's#/#-#g' > .tags
 
 - name: docker
   image: plugins/docker
@@ -17,11 +18,10 @@ steps:
     password:
       from_secret: docker_password
     repo: registry.webix.io/${DRONE_REPO_NAME}
-    tags: "${DRONE_BRANCH}"
     registry: registry.webix.io
 
 - name: deploy
-  image: registry.webix.io/js-build-env:node-14
+  image: registry.webix.io/citools:1.0
   environment:
     RESTART_HOOK_TOKEN:
       from_secret: restart_hook_token
