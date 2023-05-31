@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/ed25519"
+
 	"github.com/pascaldekloe/jwt"
 
 	"fmt"
@@ -19,7 +20,7 @@ func init() {
 func createUserToken(id int, device int64) ([]byte, error) {
 	var claims jwt.Claims
 	claims.Subject = "user"
-	claims.Issued = jwt.NewNumericTime(time.Now().Round(time.Second))
+	claims.Expires = jwt.NewNumericTime(time.Now().Add(8 * time.Hour).Round(time.Second))
 	claims.Set = map[string]interface{}{"id": id, "device": device}
 	return claims.EdDSASign(JWTPrivateKey)
 }
