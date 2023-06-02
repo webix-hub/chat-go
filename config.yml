@@ -11,6 +11,7 @@ features:
   withreactions: true
   withfiles: true
   withgroupcalls: true
+  withvoice: true
 livekit:
   enabled: true
   host: "https://livekit.webix.io"

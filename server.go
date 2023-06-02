@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"mime/multipart"
 	"mkozhukh/chat/api"
 	"mkozhukh/chat/data"
 	"net/http"
@@ -127,11 +128,7 @@ func main() {
 			return
 		}
 
-		var limit = int64(10_000_000)
-		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		r.ParseMultipartForm(limit)
-
-		file, name, err := r.FormFile("upload")
+		file, name, err := readFormFile(w, r)
 		if err != nil {
 			log.Println(err.Error())
 		}
@@ -140,6 +137,37 @@ func main() {
 		err = db.Files.PostFile(cid, uid, file, name.Filename, fDir, Config.Server.Public)
 		if err != nil {
 			log.Println("file upload error", err.Error())
+			format.JSON(w, 200, UploadResponse{Status: "error"})
+		} else {
+			format.JSON(w, 200, UploadResponse{Status: "server"})
+		}
+	})
+	r.Post("/api/v1/chat/{chatId}/voice", func(w http.ResponseWriter, r *http.Request) {
+		if !Config.Features.WithVoice {
+			panic(data.ErrFeatureDisabled)
+		}
+
+		uid := getUserId(r)
+		cid := chiIntParam(r, "chatId")
+		if !db.UsersCache.HasChat(uid, cid) {
+			http.Error(w, "access denied", http.StatusForbidden)
+			return
+		}
+
+		file, name, err := readFormFile(w, r)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		defer file.Close()
+
+		err = r.ParseForm()
+		if err == nil {
+			d := r.PostForm.Get("duration")
+			err = db.Files.PostVoice(cid, uid, file, d, name.Filename, fDir)
+		}
+
+		if err != nil {
+			log.Println("voice message upload error", err.Error())
 			format.JSON(w, 200, UploadResponse{Status: "error"})
 		} else {
 			format.JSON(w, 200, UploadResponse{Status: "server"})
@@ -266,4 +294,14 @@ func getDeviceId(r *http.Request) int {
 	}
 
 	return t
+}
+
+func readFormFile(w http.ResponseWriter, r *http.Request) (multipart.File, *multipart.FileHeader, error) {
+	var limit = int64(10_000_000)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	r.ParseMultipartForm(limit)
+
+	file, name, err := r.FormFile("upload")
+
+	return file, name, err
 }
