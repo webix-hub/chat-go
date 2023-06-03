@@ -163,7 +163,7 @@ func main() {
 		err = r.ParseForm()
 		if err == nil {
 			d := r.PostForm.Get("duration")
-			err = db.Files.PostVoice(cid, uid, file, d, name.Filename, fDir)
+			err = db.Files.PostVoice(cid, uid, file, d, name.Filename, fDir, Config.Server.Public)
 		}
 
 		if err != nil {

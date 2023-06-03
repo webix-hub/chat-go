@@ -69,7 +69,7 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 	return d.dao.Messages.SaveAndSend(id, &msg, "", 0)
 }
 
-func (d *FilesDAO) PostVoice(id, uid int, file io.ReadSeeker, duration, name, path string) error {
+func (d *FilesDAO) PostVoice(id, uid int, file io.ReadSeeker, duration, name, path, server string) error {
 	target, err := ioutil.TempFile(path, "*")
 	if err != nil {
 		return err
@@ -81,8 +81,11 @@ func (d *FilesDAO) PostVoice(id, uid int, file io.ReadSeeker, duration, name, pa
 		return err
 	}
 
+	url := getFileURL(server, tf.UID, name)
+	mText := url + "\n" + duration
+
 	msg := Message{
-		Text:    duration,
+		Text:    mText,
 		Date:    time.Now(),
 		ChatID:  id,
 		UserID:  uid,
