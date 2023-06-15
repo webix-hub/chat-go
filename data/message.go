@@ -12,6 +12,7 @@ const (
 	CallMissedMessage   = 902
 	CallBusyMessage     = 903
 	AttachedFile        = 800
+	VoiceMessage        = 801
 )
 
 type MessagesDAO struct {

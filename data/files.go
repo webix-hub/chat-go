@@ -39,14 +39,7 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 	}
 	defer target.Close()
 
-	size, err := io.Copy(target, file)
-	if err != nil {
-		return err
-	}
-	file.Seek(0, 0)
-
-	tf := File{Name: name, Path: target.Name(), ChatID: id, UID: uuid.New().String()}
-	err = d.db.Save(&tf).Error
+	tf, size, err := d.copyFile(id, name, path, file, target)
 	if err != nil {
 		return err
 	}
@@ -74,6 +67,46 @@ func (d *FilesDAO) PostFile(id, uid int, file io.ReadSeeker, name, path, server 
 		Related: tf.ID,
 	}
 	return d.dao.Messages.SaveAndSend(id, &msg, "", 0)
+}
+
+func (d *FilesDAO) PostVoice(id, uid int, file io.ReadSeeker, duration, name, path, server string) error {
+	target, err := ioutil.TempFile(path, "*")
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+
+	tf, _, err := d.copyFile(id, name, path, file, target)
+	if err != nil {
+		return err
+	}
+
+	url := getFileURL(server, tf.UID, name)
+	mText := url + "\n" + duration
+
+	msg := Message{
+		Text:    mText,
+		Date:    time.Now(),
+		ChatID:  id,
+		UserID:  uid,
+		Type:    VoiceMessage,
+		Related: tf.ID,
+	}
+
+	return d.dao.Messages.SaveAndSend(id, &msg, "", 0)
+}
+
+func (d *FilesDAO) copyFile(id int, name, path string, file io.ReadSeeker, target *os.File) (File, int64, error) {
+	size, err := io.Copy(target, file)
+	if err != nil {
+		return File{}, 0, err
+	}
+	file.Seek(0, 0)
+
+	tf := File{Name: name, Path: target.Name(), ChatID: id, UID: uuid.New().String()}
+	err = d.db.Save(&tf).Error
+
+	return tf, size, err
 }
 
 func createPreview(file io.ReadSeeker, mText, name string) error {
