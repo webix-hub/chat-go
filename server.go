@@ -143,7 +143,7 @@ func main() {
 		}
 	})
 	r.Post("/api/v1/chat/{chatId}/voice", func(w http.ResponseWriter, r *http.Request) {
-		if !Config.Features.WithVoice {
+		if !Config.Features.WithVoiceMessages {
 			panic(data.ErrFeatureDisabled)
 		}
 

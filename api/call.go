@@ -54,7 +54,7 @@ func (d *CallsAPI) SetStatus(id, status int, ctx *service.CallContext) (int, err
 	if err != nil {
 		return 0, err
 	}
-	
+
 	if status == data.CallStatusAccepted {
 		err = callService.Join(ctx, &call)
 	}
