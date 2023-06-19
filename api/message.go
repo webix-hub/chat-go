@@ -121,7 +121,7 @@ func (m *MessagesAPI) Remove(msgID int, userId UserID, deviceId DeviceID, events
 		if err != nil {
 			return err
 		}
-		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: 0, Date: &msg.Date}, UserId: 0})
+		events.Publish("chats", ChatEvent{Op: "message", ChatID: msg.ChatID, Data: &data.UserChatDetails{Message: msg.Text, MessageType: msg.Type, Date: &msg.Date}, UserId: 0})
 	}
 
 	return nil
