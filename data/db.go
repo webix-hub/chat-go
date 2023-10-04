@@ -2,6 +2,7 @@ package data
 
 import (
 	"log"
+	"strings"
 
 	remote "github.com/mkozhukh/go-remote"
 
@@ -15,6 +16,14 @@ func logError(e error) {
 	if e != nil && Debug > 0 {
 		log.Printf("[ERROR]\n%s\n", e)
 	}
+}
+
+func SafeHTML(in string) string {
+	return strings.ReplaceAll(in, "<", "&lt;")
+}
+
+func SafeUrl(in string) string {
+	return strings.ReplaceAll(in, "\"", "")
 }
 
 type DAO struct {

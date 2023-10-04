@@ -38,5 +38,21 @@
 	"unread_count": 0,
 	"direct_id": 1,
 	"status": 1
+  },
+  {
+    "id": 6,
+    "chat_id": 3,
+    "user_id": 88,
+    "unread_count": 0,
+    "direct_id": 1,
+    "status": 1
+  },
+  {
+    "id": 7,
+    "chat_id": 3,
+    "user_id": 101,
+    "unread_count": 0,
+    "direct_id": 1,
+    "status": 1
   }
 ]

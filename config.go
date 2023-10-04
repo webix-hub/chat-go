@@ -28,6 +28,7 @@ type AppConfig struct {
 	}
 	Features data.FeaturesConfig
 	Livekit  service.LivekitConfig
+	Bots     service.BotsConfig
 }
 
 // LoadFromFile method loads and parses config file

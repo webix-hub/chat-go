@@ -64,7 +64,7 @@ func main() {
 		log.Fatal("Can't create data folder", err)
 	}
 
-	rapi := api.BuildAPI(db, Config.Features, Config.Livekit)
+	rapi := api.BuildAPI(db, Config.Features, Config.Livekit, Config.Bots)
 	db.SetHub(rapi.Events)
 
 	// Router

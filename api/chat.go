@@ -41,8 +41,8 @@ func (d *ChatsAPI) AddDirect(targetUserId int, userId UserID, events *remote.Hub
 
 func (d *ChatsAPI) AddGroup(name, avatar string, users []int, userId UserID, events *remote.Hub) (*data.UserChatDetails, error) {
 	// sanitize input
-	name = safeHTML(name)
-	avatar = safeUrl(avatar)
+	name = data.SafeHTML(name)
+	avatar = data.SafeUrl(avatar)
 
 	chatId, err := d.db.Chats.AddGroup(name, avatar, append(users, int(userId)))
 	if err != nil {
@@ -65,8 +65,8 @@ func (d *ChatsAPI) Update(chatId int, name string, avatar string, userId UserID,
 	}
 
 	// sanitize input
-	name = safeHTML(name)
-	avatar = safeUrl(avatar)
+	name = data.SafeHTML(name)
+	avatar = data.SafeUrl(avatar)
 
 	err := d.db.Chats.Update(chatId, name, avatar)
 	if err != nil {

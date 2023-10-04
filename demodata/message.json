@@ -44,4 +44,18 @@
     "chat_id": 2,
     "user_id": 2,
     "text": "Hi, Alex!"
+},
+{
+    "id": 7,
+    "date": "2020-05-25T10:15:00Z",
+    "chat_id": 3,
+    "user_id": 88,
+    "text": "How it works!"
+},
+{
+    "id": 8,
+    "date": "2020-05-25T10:15:00Z",
+    "chat_id": 3,
+    "user_id": 101,
+    "text": "Hello! I am your helpful assistant. Please beware that this chat is public and anyone can read your questions and my responses."
 }]

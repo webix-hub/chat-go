@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"mkozhukh/chat/data"
+	"mkozhukh/chat/service"
 	"time"
 
 	remote "github.com/mkozhukh/go-remote"
@@ -10,6 +11,7 @@ import (
 
 type MessagesAPI struct {
 	db     *data.DAO
+	sAll   *service.ServiceAll
 	config data.FeaturesConfig
 }
 
@@ -40,7 +42,7 @@ func (m *MessagesAPI) Add(text string, chatId int, origin string, userId UserID,
 	}
 
 	msg := data.Message{
-		Text:   safeHTML(text),
+		Text:   data.SafeHTML(text),
 		ChatID: chatId,
 		UserID: int(userId),
 		Date:   time.Now(),
@@ -49,6 +51,15 @@ func (m *MessagesAPI) Add(text string, chatId int, origin string, userId UserID,
 	err := m.db.Messages.SaveAndSend(chatId, &msg, origin, int(deviceId))
 	if err != nil {
 		return nil, err
+	}
+
+	if m.config.WithBots {
+		users := m.db.UsersCache.GetUsers(chatId)
+		for _, u := range users {
+			if m.sAll.Bots.IsBot(u) {
+				go m.sAll.Bots.Process(u, msg.Text, int(userId), chatId)
+			}
+		}
 	}
 
 	return &msg, nil
@@ -64,7 +75,7 @@ func (m *MessagesAPI) Update(msgID int, text string, userId UserID, deviceId Dev
 		return nil, data.ErrAccessDenied
 	}
 
-	msg.Text = safeHTML(text)
+	msg.Text = data.SafeHTML(text)
 	msg.Edited = true
 
 	ch, err := m.db.Chats.GetOne(msg.ChatID)

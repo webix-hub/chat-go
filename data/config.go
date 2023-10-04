@@ -5,6 +5,7 @@ import "errors"
 type FeaturesConfig struct {
 	WithReactions     bool
 	WithFiles         bool
+	WithBots          bool
 	WithGroupCalls    bool
 	WithVoiceMessages bool
 }

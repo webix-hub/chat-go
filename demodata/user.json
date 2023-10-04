@@ -75,4 +75,20 @@
     "email": "",
     "avatar": "",
     "status": 0
+},
+{
+    "id": 100,
+    "name": "Dummy Bot",
+    "email": "",
+    "avatar": "",
+    "status": 2,
+    "is_bot": true
+},
+{
+    "id": 101,
+    "name": "GPT Bot",
+    "email": "",
+    "avatar": "",
+    "status": 2,
+    "is_bot": true
 }]

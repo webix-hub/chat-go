@@ -22,7 +22,7 @@ type UserEvent struct {
 	Data   interface{} `json:"data"`
 }
 
-func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.LivekitConfig) *remote.Server {
+func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.LivekitConfig, bConfig service.BotsConfig) *remote.Server {
 	if remote.MaxSocketMessageSize < 32000 {
 		remote.MaxSocketMessageSize = 32000
 	}
@@ -36,6 +36,21 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 	}
 
 	sAll := service.NewService(db, api.Events, lkConfig)
+	sAll.Bots.AddBot(&service.DummyLengthBot{ID: 100})
+	if bConfig.OpenAI.Enabled {
+		if bConfig.OpenAI.Proxy != "" {
+			sAll.Bots.AddBot(&service.ChatGPTProxyBot{
+				ID:       101,
+				ProxyURL: bConfig.OpenAI.Proxy,
+				ProxyKey: bConfig.OpenAI.Key,
+			})
+		} else {
+			sAll.Bots.AddBot(&service.ChatGPTBot{
+				ID:  101,
+				Key: bConfig.OpenAI.Key,
+			})
+		}
+	}
 
 	api.Events.AddGuard("messages", func(m *remote.Message, c *remote.Client) bool {
 		tm, ok := m.Content.(data.MessageEvent)
@@ -127,7 +142,7 @@ func BuildAPI(db *data.DAO, features data.FeaturesConfig, lkConfig service.Livek
 			remote.ConnectionValue, device), nil
 	}
 
-	must(api.AddService("message", &MessagesAPI{db, features}))
+	must(api.AddService("message", &MessagesAPI{db, sAll, features}))
 	must(api.AddService("chat", &ChatsAPI{db, sAll}))
 	must(api.AddService("call", &CallsAPI{db, sAll}))
 

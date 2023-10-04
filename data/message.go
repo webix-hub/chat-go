@@ -13,6 +13,7 @@ const (
 	CallBusyMessage     = 903
 	AttachedFile        = 800
 	VoiceMessage        = 801
+	BotMessage          = 700
 )
 
 type MessagesDAO struct {
@@ -74,6 +75,17 @@ func (d *MessagesDAO) GetLast(chatId int) (*Message, error) {
 	return &t, err
 }
 
+func (d *MessagesDAO) GetLastN(chatId, count int) ([]Message, error) {
+	msgs := make([]Message, 0, count)
+	err := d.db.Where("chat_id = ?", chatId).Order("date desc").Limit(count).Find(&msgs).Error
+	if err != nil {
+		logError(err)
+		return nil, err
+	}
+
+	return msgs, err
+}
+
 func (d *MessagesDAO) GetAll(chatID int) ([]Message, error) {
 	msgs := make([]Message, 0)
 	err := d.db.Where("chat_id = ?", chatID).Order("date ASC").Find(&msgs).Error
@@ -122,6 +134,38 @@ func (d *MessagesDAO) SaveAndSend(c int, msg *Message, origin string, from int) 
 	return d.Send(c, msg, origin, from)
 }
 
+func (d *MessagesDAO) Append(id int, text string, final bool, userId int) error {
+	msg, err := d.GetOne(id)
+
+	if err != nil {
+		return err
+	}
+	if msg.UserID != int(userId) {
+		return ErrAccessDenied
+	}
+
+	text = SafeHTML(text)
+	prevText := msg.Text
+
+	msg.Text += text
+	err = d.Save(msg)
+	if err != nil {
+		return err
+	}
+
+	msg.Text = text
+	d.dao.Hub.Publish("messages", MessageEvent{Op: "append", Msg: msg, From: 0})
+
+	if prevText == "" {
+		_, err = d.dao.Chats.SetLastMessage(msg.ChatID, msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (d *MessagesDAO) Send(c int, msg *Message, origin string, from int) error {
 	d.dao.Hub.Publish("messages", MessageEvent{Op: "add", Msg: msg, Origin: origin, From: from})
 
@@ -130,9 +174,11 @@ func (d *MessagesDAO) Send(c int, msg *Message, origin string, from int) error {
 		return err
 	}
 
-	_, err = d.dao.Chats.SetLastMessage(c, msg)
-	if err != nil {
-		return err
+	if msg.Text != "" {
+		_, err = d.dao.Chats.SetLastMessage(c, msg)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

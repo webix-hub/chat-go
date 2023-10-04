@@ -10,6 +10,7 @@ db:
 features:
   withreactions: true
   withfiles: true
+  withbots: true
   withgroupcalls: true
   withvoicemessages: true
 livekit:
@@ -17,3 +18,7 @@ livekit:
   host: "https://livekit.webix.io"
   apikey: demo
   apisecret: ol9385c0c9h237850h283549h2305823
+bots:
+  openai:
+    enabled: true
+    key: put_it_here

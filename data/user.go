@@ -23,6 +23,7 @@ type User struct {
 	Avatar string `json:"avatar"`
 	UID    string `json:"-"`
 	Status int    `json:"status"`
+	IsBot  bool   `json:"is_bot"`
 }
 
 func (d *UsersDAO) GetOne(id int) (*User, error) {

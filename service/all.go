@@ -13,6 +13,7 @@ type ServiceAll struct {
 	Informer      *informerService
 	UsersActivity *usersActivityService
 	Livekit       *livekitService
+	Bots          *botsService
 }
 
 func NewService(dao *data.DAO, hub *remote.Hub, livekitConfig LivekitConfig) *ServiceAll {
@@ -27,6 +28,7 @@ func NewService(dao *data.DAO, hub *remote.Hub, livekitConfig LivekitConfig) *Se
 	s.PersonalCalls = newPersonalCallService(baseCall)
 	s.UsersActivity = newActivityService(dao, s)
 	s.Informer = newInformerService(dao, hub)
+	s.Bots = newBotsService(dao)
 
 	CallProvider = &CallServiceProvider{
 		group:    s.GroupCalls,
