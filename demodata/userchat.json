@@ -44,7 +44,7 @@
     "chat_id": 3,
     "user_id": 88,
     "unread_count": 0,
-    "direct_id": 1,
+    "direct_id": 101,
     "status": 1
   },
   {
@@ -52,7 +52,7 @@
     "chat_id": 3,
     "user_id": 101,
     "unread_count": 0,
-    "direct_id": 1,
+    "direct_id": 88,
     "status": 1
   }
 ]
