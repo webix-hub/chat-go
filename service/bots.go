@@ -23,16 +23,20 @@ type HistoryRecord struct {
 	Message string
 }
 
-func (b *BotAPI) Error(err error, chatId int, userId int) {
-	msg := data.Message{
-		Text:   data.SafeHTML(err.Error()),
-		ChatID: chatId,
-		UserID: userId,
-		Date:   time.Now(),
-	}
-
+func (b *BotAPI) Error(err error, chatId int, userId int, append int) {
 	fmt.Printf("Error: %d %s\n", chatId, err)
-	b.dao.Messages.SaveAndSend(chatId, &msg, "", userId)
+	if append > 0 {
+		b.dao.Messages.Append(append, data.SafeHTML(err.Error()), true, userId)
+	} else {
+		msg := data.Message{
+			Text:   data.SafeHTML(err.Error()),
+			ChatID: chatId,
+			UserID: userId,
+			Date:   time.Now(),
+		}
+
+		b.dao.Messages.SaveAndSend(chatId, &msg, "", userId)
+	}
 }
 
 func (b *BotAPI) Append(id int, text string, final bool, userId int) {

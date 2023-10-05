@@ -72,13 +72,13 @@ func (b *ChatGPTBot) Process(msg string, chatId int, api *BotAPI) {
 
 	payload, err := json.Marshal(rq)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, 0)
 		return
 	}
 
 	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewReader(payload))
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, 0)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+b.Key)
@@ -86,14 +86,14 @@ func (b *ChatGPTBot) Process(msg string, chatId int, api *BotAPI) {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, 0)
 		return
 	}
 
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, 0)
 		return
 	}
 
@@ -101,11 +101,11 @@ func (b *ChatGPTBot) Process(msg string, chatId int, api *BotAPI) {
 		errRes := GTPErrorResponse{}
 		err := json.Unmarshal(body, &errRes)
 		if err != nil {
-			api.Error(err, chatId, b.ID)
+			api.Error(err, chatId, b.ID, 0)
 			return
 		}
 
-		api.Error(fmt.Errorf("code: %d, message: %s", errRes.Error.Code, errRes.Error.Message), chatId, b.ID)
+		api.Error(fmt.Errorf("code: %d, message: %s", errRes.Error.Code, errRes.Error.Message), chatId, b.ID, 0)
 		return
 	}
 
@@ -113,12 +113,12 @@ func (b *ChatGPTBot) Process(msg string, chatId int, api *BotAPI) {
 	err = json.Unmarshal(body, &resp)
 
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, 0)
 		return
 	}
 
 	if len(resp.Choices) == 0 {
-		api.Error(errors.New("response doesn't have any choices"), chatId, b.ID)
+		api.Error(errors.New("response doesn't have any choices"), chatId, b.ID, 0)
 		return
 	}
 

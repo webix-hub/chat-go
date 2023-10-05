@@ -29,28 +29,31 @@ func (b *ChatGPTProxyBot) GetID() int {
 func (b *ChatGPTProxyBot) Process(msg string, chatId int, api *BotAPI) {
 	mid := api.Send("", chatId, b.ID)
 
-	hs := api.GetHistory(chatId, 3)
-	msgs := make([]Message, len(hs)+2)
+	hs := api.GetHistory(chatId, 5)
+	msgs := make([]Message, 1, 6)
 	msgs[0] = Message{Content: "You are a helpful assistant", Role: "system"}
-	for i, x := range hs {
-		var role string
-		text := x.Text
-		if len(text) > 500 {
-			text = text[:500]
+
+	for i := len(hs) - 1; i >= 0; i-- {
+		if hs[i].ID == mid {
+			continue
 		}
-		if x.UserID == b.ID {
+
+		var role string
+		text := hs[i].Text
+		if len(text) > 380 {
+			text = text[:380]
+		}
+		if hs[i].UserID == b.ID {
 			role = "assistant"
 		} else {
 			role = "user"
 		}
 
-		msgs[i+1] = Message{
+		msgs = append(msgs, Message{
 			Content: text,
 			Role:    role,
-		}
+		})
 	}
-	msgs[len(hs)+1] = Message{Content: msg, Role: "user"}
-	fmt.Printf("History: %+v\n", msgs)
 
 	rq := GPTProxyPayload{
 		Messages:    msgs,
@@ -60,13 +63,13 @@ func (b *ChatGPTProxyBot) Process(msg string, chatId int, api *BotAPI) {
 
 	payload, err := json.Marshal(rq)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, mid)
 		return
 	}
 
 	req, err := http.NewRequest("POST", b.ProxyURL, bytes.NewReader(payload))
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, mid)
 	}
 
 	req.Header.Set("WX_PROXY_KEY", b.ProxyKey)
@@ -74,19 +77,19 @@ func (b *ChatGPTProxyBot) Process(msg string, chatId int, api *BotAPI) {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, mid)
 		return
 	}
 
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		api.Error(err, chatId, b.ID)
+		api.Error(err, chatId, b.ID, mid)
 		return
 	}
 
 	if res.StatusCode != 200 {
-		api.Error(fmt.Errorf("code: %d, message: %s", res.StatusCode, string(body)), chatId, b.ID)
+		api.Error(fmt.Errorf("code: %d, message: %s", res.StatusCode, string(body)), chatId, b.ID, mid)
 		return
 	}
 
